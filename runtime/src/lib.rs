@@ -6,6 +6,10 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+/// Constant values used within the runtime.
+// pub mod constants;
+// use constants::currency;
+
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
@@ -86,6 +90,26 @@ pub mod opaque {
 			pub aura: Aura,
 			pub grandpa: Grandpa,
 		}
+	}
+}
+
+
+pub mod currency {
+    use super::Balance;
+
+    // Provide a common factor between runtimes based on a supply of 10_000_000 tokens.
+	pub const SUPPLY_FACTOR: Balance = 1;
+
+    pub const MICROYODA: Balance = 1_000_000_000_000;
+	pub const MILLIYODA: Balance = 1_000_000_000_000_000;
+	pub const YODA: Balance = 1_000_000_000_000_000_000;
+	pub const KILOYODA: Balance = 1_000_000_000_000_000_000_000;
+
+    pub const TRANSACTION_BYTE_FEE: Balance = 10 * MICROYODA * SUPPLY_FACTOR;
+	pub const STORAGE_BYTE_FEE: Balance = 100 * MICROYODA * SUPPLY_FACTOR;
+
+	pub const fn deposit(items: u32, bytes: u32) -> Balance {
+		items as Balance * 1 * YODA * SUPPLY_FACTOR + (bytes as Balance) * STORAGE_BYTE_FEE
 	}
 }
 
@@ -284,7 +308,7 @@ impl pallet_assets::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 1;
+	pub const TransactionByteFee: Balance = currency::TRANSACTION_BYTE_FEE;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
