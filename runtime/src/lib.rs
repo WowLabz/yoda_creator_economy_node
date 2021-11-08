@@ -100,10 +100,10 @@ pub mod currency {
     // Provide a common factor between runtimes based on a supply of 10_000_000 tokens.
 	pub const SUPPLY_FACTOR: Balance = 1;
 
-    pub const MICROYODA: Balance = 1_000_000_000_000;
-	pub const MILLIYODA: Balance = 1_000_000_000_000_000;
-	pub const YODA: Balance = 1_000_000_000_000_000_000;
-	pub const KILOYODA: Balance = 1_000_000_000_000_000_000_000;
+    pub const MICROYODA: Balance = 10_000;
+	pub const MILLIYODA: Balance = 10_000_000;
+	pub const YODA: Balance = 10_000_000_000;
+	pub const KILOYODA: Balance = 10_000_000_000_000;
 
     pub const TRANSACTION_BYTE_FEE: Balance = 10 * MICROYODA * SUPPLY_FACTOR;
 	pub const STORAGE_BYTE_FEE: Balance = 100 * MICROYODA * SUPPLY_FACTOR;
@@ -326,6 +326,7 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-template in pallets/template.
 impl pallet_template::Config for Runtime {
 	type Event = Event;
+	//type Currency = currency;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
