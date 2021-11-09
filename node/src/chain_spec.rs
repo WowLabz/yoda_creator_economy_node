@@ -7,6 +7,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use std::str::FromStr;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -58,7 +59,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-					get_account_id_from_seed::<sr25519::Public>("5E9qirdixDapJ4Z4JBZD4cpcR65NNbUbW4ScaXdrjLEVcScZ"),
+					AccountId::from_str("5E9qirdixDapJ4Z4JBZD4cpcR65NNbUbW4ScaXdrjLEVcScZ").unwrap(),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
 				],
 				true,
 			)
@@ -70,7 +72,12 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		None,
 		// Properties
-		None,
+		Some(
+			serde_json::from_str(
+				"{\"tokenDecimals\": 12, \"tokenSymbol\": \"YODA\", \"SS58Prefix\": 42}",
+			)
+			.expect("Provided valid json map"),
+		),
 		// Extensions
 		None,
 	))
