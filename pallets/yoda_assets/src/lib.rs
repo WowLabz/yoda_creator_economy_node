@@ -19,16 +19,34 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
-	use frame_support::traits::{Currency, ExistenceRequirement, Randomness};
-	use frame_system::pallet_prelude::*;
+	// use frame_support::traits::{Currency, ExistenceRequirement, Randomness, UnfilteredDispatchable};
+	// use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+	// use frame_system::pallet_prelude::*;
+	// use sp_runtime::traits::StaticLookup;
+
+	// use pallet_assets::WeightInfo;
+
+    use frame_support::pallet_prelude::*;
+    use frame_support::{
+        traits::{Currency, ExistenceRequirement, UnfilteredDispatchable, WithdrawReasons},
+        transactional,
+    };
+    use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
+    use frame_system::{pallet_prelude::*, RawOrigin};
+    use sp_runtime::traits::{One, StaticLookup, Zero};
+    // use sp_std::{prelude::*, vec};
+
+	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+	pub(crate) type AssetsAssetIdOf<T> = <T as pallet_assets::Config>::AssetId;
+	pub(crate) type AssetsBalanceOf<T> = <T as pallet_assets::Config>::Balance;
+	type AssetsWeightInfoOf<T> = <T as pallet_assets::Config>::WeightInfo;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_assets::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		//type Currency: Currency<Self::AccountId>; 
+		//type Currency: Currency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -85,6 +103,18 @@ pub mod pallet {
 			Ok(())
 		}
 
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn create_asset(
+			origin: OriginFor<T>,
+			#[pallet::compact] asset_id: T::AssetId,
+			admin: <T::Lookup as StaticLookup>::Source,
+			min_balance: AssetsBalanceOf<T>,
+		) -> DispatchResult {
+			let _account = ensure_signed(origin.clone())?;
+			let call = pallet_assets::Pallet::<T>::create(origin, asset_id, admin, min_balance);
+			call
+		}
+
 		/// An example dispatchable that may throw a custom error.
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
@@ -100,7 +130,7 @@ pub mod pallet {
 					// Update the value in storage with the incremented result.
 					<Something<T>>::put(new);
 					Ok(())
-				},
+				}
 			}
 		}
 	}
