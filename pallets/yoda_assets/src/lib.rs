@@ -26,15 +26,19 @@ pub mod pallet {
 
 	// use pallet_assets::WeightInfo;
 
-    use frame_support::pallet_prelude::*;
-    use frame_support::{
-        traits::{Currency, ExistenceRequirement, UnfilteredDispatchable, WithdrawReasons},
-        transactional,
-    };
-    use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
-    use frame_system::{pallet_prelude::*, RawOrigin};
-    use sp_runtime::traits::{One, StaticLookup, Zero};
-    // use sp_std::{prelude::*, vec};
+	// use frame_support::dispatch::Dispatchable;
+	use frame_support::pallet_prelude::*;
+	// use frame_support::traits::IsSubType;
+	// use frame_support::weights::GetDispatchInfo;
+	// use frame_support::weights::PostDispatchInfo;
+	use frame_support::{
+		traits::{Currency, ExistenceRequirement, UnfilteredDispatchable, WithdrawReasons},
+		transactional,
+	};
+	use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
+	use frame_system::{pallet_prelude::*, RawOrigin};
+	use sp_runtime::traits::{One, StaticLookup, Zero};
+	use sp_std::{prelude::*, vec::Vec};
 
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	pub(crate) type AssetsAssetIdOf<T> = <T as pallet_assets::Config>::AssetId;
@@ -47,6 +51,15 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		//type Currency: Currency<Self::AccountId>;
+
+		// type Call: frame_support::traits::IsSubType<pallet_assets::Call<Self>>
+		// 	+ Parameter
+		// 	+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+		// 	+ GetDispatchInfo
+		// 	+ From<frame_system::pallet::Call<Self>>
+		// 	+ UnfilteredDispatchable<Origin = Self::Origin>
+		// 	+ frame_support::dispatch::Codec
+		// 	+ IsSubType<Call<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -109,10 +122,32 @@ pub mod pallet {
 			#[pallet::compact] asset_id: T::AssetId,
 			admin: <T::Lookup as StaticLookup>::Source,
 			min_balance: AssetsBalanceOf<T>,
+			token_name: Vec<u8>,
+			token_symbol: Vec<u8>,
+			token_decimals: u8,
 		) -> DispatchResult {
 			let _account = ensure_signed(origin.clone())?;
-			let call = pallet_assets::Pallet::<T>::create(origin, asset_id, admin, min_balance);
-			call
+			pallet_assets::Pallet::<T>::create(origin.clone(), asset_id, admin, min_balance)?;
+
+			// Todo: based the creators "YODA" balance we limt the total supply
+			// for the creator token
+
+			pallet_assets::Pallet::<T>::set_metadata(
+				origin,
+				asset_id,
+				token_name,
+				token_symbol,
+				token_decimals,
+			)
+
+			// if let IsSubType::is_sub_type(pallet_assets::pallet::Call::create { .. }) = Some(_) {
+			// 	// skip
+			// 	// todo!()
+			// } else {
+			// 	// default impl
+			// 	// let (_fee, imbalance) = self.withdraw_fee(who, call, info, len)?;
+			// 	// Ok((self.0, who.clone(), imbalance))
+			// }
 		}
 
 		/// An example dispatchable that may throw a custom error.
