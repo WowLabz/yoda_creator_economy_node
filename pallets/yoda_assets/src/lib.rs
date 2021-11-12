@@ -142,5 +142,42 @@ pub mod pallet {
 			let _account = ensure_signed(origin.clone())?;
 			pallet_assets::Pallet::<T>::mint(origin, asset_id, beneficiary, amount)
 		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn asset_buy(
+			origin: OriginFor<T>,
+			#[pallet::compact] asset_id: T::AssetId,
+			admin: <T::Lookup as StaticLookup>::Source,
+			beneficiary: <T::Lookup as StaticLookup>::Source,
+			tokens: AssetsBalanceOf<T>,
+		
+		) -> DispatchResult {
+			let _account = ensure_signed(origin.clone())?;
+			pallet_assets::Pallet::<T>::transfer(origin.clone(), asset_id, beneficiary, tokens)
+
+			// Todo: based the creators "YODA" balance we limt the total supply
+			// for the creator token
+
+			
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn asset_sell(
+			origin: OriginFor<T>,
+			#[pallet::compact] asset_id: T::AssetId,
+			admin: <T::Lookup as StaticLookup>::Source,
+			beneficiary: <T::Lookup as StaticLookup>::Source,
+			tokens: AssetsBalanceOf<T>,
+		
+		) -> DispatchResult {
+			let _account = ensure_signed(origin.clone())?;
+			pallet_assets::Pallet::<T>::transfer(origin.clone(), asset_id, beneficiary, tokens)
+
+			// Todo: based the creators "YODA" balance we limt the total supply
+			// for the creator token
+
+			
+		}
 	}
+	
 }
