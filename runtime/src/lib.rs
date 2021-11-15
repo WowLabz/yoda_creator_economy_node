@@ -36,6 +36,7 @@ pub use frame_support::{
 		IdentityFee, Weight,
 	},
 	StorageValue,
+	PalletId
 };
 pub use frame_system::EnsureRoot;
 pub use pallet_balances::Call as BalancesCall;
@@ -339,12 +340,12 @@ impl pallet_yoda_assets::Config for Runtime {
 	//type Currency = currency;
 }
 
-impl orml_tokens::Trait for Runtime {
+impl orml_tokens::Config for Runtime {
     type Event = Event;
     type Balance = u128;
     type Amount = i64;
     type CurrencyId = u128;
-	type OnReceived = ();
+	// type OnReceived = ();
 	type WeightInfo = ();
 }
 
@@ -352,7 +353,7 @@ parameter_types! {
 	pub const GetNativeCurrencyId: u128 = 0;
 }
 
-impl orml_currencies::Trait for Runtime {
+impl orml_currencies::Config for Runtime {
 	type Event = Event;
 	type MultiCurrency = Tokens;
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, i64, BlockNumber>;
@@ -362,15 +363,15 @@ impl orml_currencies::Trait for Runtime {
 
 parameter_types! {
 	pub const CurveDeposit: u128 = 10;
-	pub const BondingCurveModuleId: ModuleId = ModuleId(*b"sub/bond");
+	pub const BondingCurveModuleId: PalletId = PalletId(*b"sub/bond");
 }
 
-impl pallet_bonding_curve::Trait for Runtime {
+impl pallet_yoda_bonding_curve::Config for Runtime {
 	type Event = Event;
 	type Currency = Currencies;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type CurveDeposit = CurveDeposit;
-	type ModuleId = BondingCurveModuleId;
+	type PalletId = BondingCurveModuleId;
 }
 
 
