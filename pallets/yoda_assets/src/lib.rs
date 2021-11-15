@@ -8,11 +8,11 @@ pub use pallet::*;
 // Re-export to use implementation details in dependent crates:
 pub use pallet_assets;
 
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;

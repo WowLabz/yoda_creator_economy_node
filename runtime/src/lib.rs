@@ -41,6 +41,8 @@ pub use frame_system::EnsureRoot;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
+use orml_currencies::BasicCurrencyAdapter;
+
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
@@ -48,6 +50,7 @@ pub use sp_runtime::{Perbill, Permill};
 /// Import the template pallet.
 pub use pallet_template;
 pub use pallet_yoda_assets;
+pub use pallet_yoda_bonding_curve;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -336,6 +339,41 @@ impl pallet_yoda_assets::Config for Runtime {
 	//type Currency = currency;
 }
 
+impl orml_tokens::Trait for Runtime {
+    type Event = Event;
+    type Balance = u128;
+    type Amount = i64;
+    type CurrencyId = u128;
+	type OnReceived = ();
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const GetNativeCurrencyId: u128 = 0;
+}
+
+impl orml_currencies::Trait for Runtime {
+	type Event = Event;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, i64, BlockNumber>;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const CurveDeposit: u128 = 10;
+	pub const BondingCurveModuleId: ModuleId = ModuleId(*b"sub/bond");
+}
+
+impl pallet_bonding_curve::Trait for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type CurveDeposit = CurveDeposit;
+	type ModuleId = BondingCurveModuleId;
+}
+
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -356,6 +394,9 @@ construct_runtime!(
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		YodaAssets: pallet_yoda_assets::{Pallet, Call, Storage, Event<T>},
+		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
+		Currencies: orml_currencies::{Pallet, Call, Event<T>},
+		BondingCurve: pallet_yoda_bonding_curve::{Pallet, Call, Storage, Event<T>}
 	}
 );
 

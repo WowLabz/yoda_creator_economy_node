@@ -19,6 +19,26 @@ default-features = false
 path = '../pallets/yoda_assets'
 version = '1.0.0'
 
+[dependencies.pallet-yoda-bonding-curve]
+default-features = false
+path = '../pallets/yoda_bonding_curve'
+version = '1.0.0'
+
+[dependencies.orml-currencies]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library'
+version = '0.4.1-dev'
+
+[dependencies.orml-tokens]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library'
+version = '0.4.1-dev'
+
+[dependencies.orml-traits]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library'
+version = '0.4.1-dev'
+
 [build-dependencies.substrate-wasm-builder]
 git = 'https://github.com/paritytech/substrate.git'
 tag = 'monthly-2021-10'
@@ -208,6 +228,7 @@ runtime-benchmarks = [
     'pallet-balances/runtime-benchmarks',
     'pallet-template/runtime-benchmarks',
     'pallet-yoda-assets/runtime-benchmarks',
+    'pallet-yoda-bonding-curve/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
 ]
@@ -218,6 +239,9 @@ std = [
     'frame-support/std',
     'frame-system-rpc-runtime-api/std',
     'frame-system/std',
+    'orml-currencies/std',
+    'orml-tokens/std',
+    'orml-traits/std',
     'pallet-aura/std',
     'pallet-balances/std',
     'pallet-assets/std',
@@ -226,6 +250,7 @@ std = [
     'pallet-sudo/std',
     'pallet-template/std',
     'pallet-yoda-assets/std',
+    'pallet-yoda-bonding-curve/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',
