@@ -41,8 +41,7 @@ version = '0.4.1-dev'
 
 [build-dependencies.substrate-wasm-builder]
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'monthly-2021-10'
-version = '5.0.0-dev'
+branch = "polkadot-v0.9.12"
 
 [dependencies.codec]
 default-features = false
@@ -149,8 +148,7 @@ branch = "polkadot-v0.9.12"
 [dependencies.sp-consensus-aura]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'monthly-2021-10'
-version = '0.10.0-dev'
+branch = "polkadot-v0.9.12"
 
 [dependencies.sp-core]
 default-features = false
