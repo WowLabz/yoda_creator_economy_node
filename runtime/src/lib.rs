@@ -358,9 +358,7 @@ parameter_type_with_key! {
 }
 
  parameter_types! {
-	//pub const MetaverseNetworkTreasuryPalletId: PalletId = PalletId(*b"bit/trsy");
-	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust");
-	//pub ModuleAccountId: AccountId = OnDustPalletId::get().into_account();
+	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust);
  }
 
 impl orml_tokens::Config for Runtime {
