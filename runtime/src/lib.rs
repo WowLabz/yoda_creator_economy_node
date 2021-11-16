@@ -38,7 +38,7 @@ pub use frame_support::{
 		IdentityFee, Weight,
 	},
 	StorageValue,
-	PalletId
+	PalletId,
 };
 pub use frame_system::EnsureRoot;
 pub use pallet_balances::Call as BalancesCall;
@@ -357,9 +357,11 @@ parameter_type_with_key! {
 	};
 }
 
-// parameter_types! {
-//     pub const DustRemovalWhitelist: u128 = 0;
-// }
+ parameter_types! {
+	//pub const MetaverseNetworkTreasuryPalletId: PalletId = PalletId(*b"bit/trsy");
+	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust);
+	//pub ModuleAccountId: AccountId = OnDustPalletId::get().into_account();
+ }
 
 impl orml_tokens::Config for Runtime {
     type Event = Event;
@@ -369,9 +371,9 @@ impl orml_tokens::Config for Runtime {
 	// type OnReceived = ();
 	type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
-    type OnDust = ();
+    type OnDust = orml_tokens::TransferDust<Runtime, OnDustPalletId>;
     type MaxLocks = MaxLocks;
-    type DustRemovalWhitelist = DustRemovalWhitelist;
+    type DustRemovalWhitelist = ();
 }
 
 parameter_types! {
