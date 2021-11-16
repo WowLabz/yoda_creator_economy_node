@@ -30,7 +30,9 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{KeyOwnerProofSystem, Randomness, StorageInfo},
+	traits::{KeyOwnerProofSystem, Randomness, StorageInfo, BalanceStatus as Status, Contains, Currency as PalletCurrency, ExistenceRequirement, Get, Imbalance,
+		LockableCurrency as PalletLockableCurrency, ReservableCurrency as PalletReservableCurrency, SignedImbalance,
+		WithdrawReasons},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		IdentityFee, Weight,
@@ -43,6 +45,12 @@ pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::CurrencyAdapter;
 use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::{
+	arithmetic::{self, Signed},
+	currency::TransferAll,
+	BalanceStatus, GetByKey, LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency,
+	MultiReservableCurrency, OnDust,
+};
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -314,6 +322,7 @@ impl pallet_assets::Config for Runtime {
 
 parameter_types! {
 	pub const TransactionByteFee: Balance = currency::TRANSACTION_BYTE_FEE;
+    pub const OperationalFeeMultiplier: u8 = 5;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -321,6 +330,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate = ();
+    type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -340,6 +350,11 @@ impl pallet_yoda_assets::Config for Runtime {
 	//type Currency = currency;
 }
 
+parameter_types! {
+	pub const ExistentialDeposits: GetByKey<u128, u128> = [(500, 500)].cloned().collect();
+    pub const DustRemovalWhitelist: u128 = 0;
+}
+
 impl orml_tokens::Config for Runtime {
     type Event = Event;
     type Balance = u128;
@@ -347,6 +362,11 @@ impl orml_tokens::Config for Runtime {
     type CurrencyId = u128;
 	// type OnReceived = ();
 	type WeightInfo = ();
+    type ExistentialDeposits = ExistentialDeposits;
+    // type ExistentialDeposits: GetByKey<u128, u128>;
+    type OnDust = ();
+    type MaxLocks = MaxLocks;
+    type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 parameter_types! {
@@ -359,6 +379,10 @@ impl orml_currencies::Config for Runtime {
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, i64, BlockNumber>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
+	// type ExistentialDeposits = ExistentialDeposits;
+    // type OnDust = ();
+    // type MaxLocks = MaxLocks;
+    // type DustRemovalWhitelist = Contains<Self::AccountId>;
 }
 
 parameter_types! {
