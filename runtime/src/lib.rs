@@ -18,7 +18,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -49,7 +49,7 @@ use orml_traits::{
 	arithmetic::{self, Signed},
 	currency::TransferAll,
 	BalanceStatus, GetByKey, LockIdentifier, MultiCurrency, MultiCurrencyExtended, MultiLockableCurrency,
-	MultiReservableCurrency, OnDust,
+	MultiReservableCurrency, OnDust, parameter_type_with_key,
 };
 
 #[cfg(any(feature = "std", test))]
@@ -323,6 +323,7 @@ impl pallet_assets::Config for Runtime {
 parameter_types! {
 	pub const TransactionByteFee: Balance = currency::TRANSACTION_BYTE_FEE;
     pub const OperationalFeeMultiplier: u8 = 5;
+	pub const DustRemovalWhitelist: u128 = 100;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -350,10 +351,15 @@ impl pallet_yoda_assets::Config for Runtime {
 	//type Currency = currency;
 }
 
-parameter_types! {
-	pub const ExistentialDeposits: GetByKey<u128, u128> = [(500, 500)].cloned().collect();
-    pub const DustRemovalWhitelist: u128 = 0;
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: u128| -> Balance {
+		Zero::zero()
+	};
 }
+
+// parameter_types! {
+//     pub const DustRemovalWhitelist: u128 = 0;
+// }
 
 impl orml_tokens::Config for Runtime {
     type Event = Event;
@@ -363,7 +369,6 @@ impl orml_tokens::Config for Runtime {
 	// type OnReceived = ();
 	type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
-    // type ExistentialDeposits: GetByKey<u128, u128>;
     type OnDust = ();
     type MaxLocks = MaxLocks;
     type DustRemovalWhitelist = DustRemovalWhitelist;
