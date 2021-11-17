@@ -351,17 +351,18 @@ impl pallet_yoda_assets::Config for Runtime {
 	//type Currency = currency;
 }
 
+
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: u128| -> Balance {
 		Zero::zero()
 	};
 }
 
-//  parameter_types! {
-// 	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust");
-// 	pub OnDustAccountId: AccountId = OnDustPalletId::get().into_account();
+ parameter_types! {
+	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust");
+	pub OnDustAccountId: AccountId = PalletId::into_account(OnDustPalletId);
 	
-//  }
+ }
 
 impl orml_tokens::Config for Runtime {
     type Event = Event;
@@ -371,10 +372,11 @@ impl orml_tokens::Config for Runtime {
 	// type OnReceived = ();
 	type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
-    //type OnDust = orml_tokens::TransferDust<Runtime, OnDustAccountId>;
+	type OnDust = orml_tokens::TransferDust<Runtime, OnDustAccountId>;
+    //type OnDust = orml_tokens::BurnDust<Runtime>;
 	//type OnDust= OnDust<AccountId, u128, u128>;
-	type OnDust = Balances;
-	//type OnDust = ();
+	//type OnDust = Balances;
+	//type OnDust = OnDust<>;
     type MaxLocks = MaxLocks;
     type DustRemovalWhitelist = ();
 }
