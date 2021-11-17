@@ -63,8 +63,7 @@ branch = "polkadot-v0.9.12"
 [dependencies.sc-executor]
 features = ['wasmtime']
 git = 'https://github.com/paritytech/substrate.git'
-tag = 'monthly-2021-10'
-version = '0.10.0-dev'
+branch = "polkadot-v0.9.12"
 
 [dependencies.sc-finality-grandpa]
 git = 'https://github.com/paritytech/substrate.git'

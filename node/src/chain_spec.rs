@@ -1,5 +1,5 @@
 use yoda_creator_economy_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig,
+	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, Signature, SudoConfig, TokensConfig,
 	SystemConfig, WASM_BINARY,
 };
 use sc_service::ChainType;
@@ -160,5 +160,6 @@ fn testnet_genesis(
 			key: root_key,
 		},
 		assets: Default::default(),
+		tokens: TokensConfig { balances: vec![] },
 	}
 }

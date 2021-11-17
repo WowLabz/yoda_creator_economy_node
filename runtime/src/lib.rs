@@ -18,7 +18,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero, AccountIdConversion},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, MultiSignature,
 };
@@ -323,7 +323,6 @@ impl pallet_assets::Config for Runtime {
 parameter_types! {
 	pub const TransactionByteFee: Balance = currency::TRANSACTION_BYTE_FEE;
     pub const OperationalFeeMultiplier: u8 = 5;
-	pub const DustRemovalWhitelist: u128 = 100;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -351,6 +350,18 @@ impl pallet_yoda_assets::Config for Runtime {
 	//type Currency = currency;
 }
 
+pub fn get_all_module_accounts() -> Vec<AccountId> {
+	vec![
+		OnDustPalletId::get().into_account()
+	]
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		get_all_module_accounts().contains(a)
+	}
+}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: u128| -> Balance {
@@ -360,8 +371,7 @@ parameter_type_with_key! {
 
  parameter_types! {
 	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust");
-	pub OnDustAccountId: AccountId = PalletId::into_account(OnDustPalletId);
-	
+	pub OnDustAccountId: AccountId = OnDustPalletId::get().into_account();
  }
 
 impl orml_tokens::Config for Runtime {
@@ -373,12 +383,8 @@ impl orml_tokens::Config for Runtime {
 	type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = orml_tokens::TransferDust<Runtime, OnDustAccountId>;
-    //type OnDust = orml_tokens::BurnDust<Runtime>;
-	//type OnDust= OnDust<AccountId, u128, u128>;
-	//type OnDust = Balances;
-	//type OnDust = OnDust<>;
     type MaxLocks = MaxLocks;
-    type DustRemovalWhitelist = ();
+    type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
 parameter_types! {
@@ -429,7 +435,7 @@ construct_runtime!(
 		YodaAssets: pallet_yoda_assets::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
-		BondingCurve: pallet_yoda_bonding_curve::{Pallet, Call, Storage, Event<T>}
+		YodaBondingCurve: pallet_yoda_bonding_curve::{Pallet, Call, Storage, Event<T>}
 	}
 );
 
