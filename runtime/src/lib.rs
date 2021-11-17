@@ -357,9 +357,11 @@ parameter_type_with_key! {
 	};
 }
 
- parameter_types! {
-	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust);
- }
+//  parameter_types! {
+// 	pub const OnDustPalletId: PalletId = PalletId(*b"bit/dust");
+// 	pub OnDustAccountId: AccountId = OnDustPalletId::get().into_account();
+	
+//  }
 
 impl orml_tokens::Config for Runtime {
     type Event = Event;
@@ -369,7 +371,10 @@ impl orml_tokens::Config for Runtime {
 	// type OnReceived = ();
 	type WeightInfo = ();
     type ExistentialDeposits = ExistentialDeposits;
-    type OnDust = orml_tokens::TransferDust<Runtime, OnDustPalletId>;
+    //type OnDust = orml_tokens::TransferDust<Runtime, OnDustAccountId>;
+	//type OnDust= OnDust<AccountId, u128, u128>;
+	type OnDust = Balances;
+	//type OnDust = ();
     type MaxLocks = MaxLocks;
     type DustRemovalWhitelist = ();
 }
@@ -384,10 +389,6 @@ impl orml_currencies::Config for Runtime {
 	type NativeCurrency = BasicCurrencyAdapter<Runtime, Balances, i64, BlockNumber>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
-	// type ExistentialDeposits = ExistentialDeposits;
-    // type OnDust = ();
-    // type MaxLocks = MaxLocks;
-    // type DustRemovalWhitelist = Contains<Self::AccountId>;
 }
 
 parameter_types! {
@@ -424,7 +425,7 @@ construct_runtime!(
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
 		YodaAssets: pallet_yoda_assets::{Pallet, Call, Storage, Event<T>},
-		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>},
+		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
 		BondingCurve: pallet_yoda_bonding_curve::{Pallet, Call, Storage, Event<T>}
 	}
