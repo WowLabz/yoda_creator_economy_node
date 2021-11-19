@@ -181,6 +181,14 @@ pub mod pallet {
 			)?;
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
 
+			// Testing to be removed later
+			let acc: AccountOf<T> = T::PalletId::get().into_account();
+			log::info!(
+				"free_bal account {:#?}, bal: {:#?}",
+				acc.clone(),
+				T::Currency::free_balance(asset_id, &acc)
+			);
+
 			let curve_id = Self::next_id();
 
 			let new_curve = BondingCurve::<T> {
@@ -243,6 +251,14 @@ pub mod pallet {
 				);
 
 				let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
+
+				// Testing to be removed later
+				let acc: AccountOf<T> = T::PalletId::get().into_sub_account(asset.curve_id);
+				log::info!(
+					"free_bal account {:#?}, bal: {:#?}",
+					acc.clone(),
+					T::Currency::free_balance(asset_id, &acc)
+				);
 
 				T::Currency::transfer(
 					T::GetNativeCurrencyId::get(),
