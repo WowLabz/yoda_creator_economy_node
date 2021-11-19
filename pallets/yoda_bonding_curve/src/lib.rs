@@ -139,6 +139,8 @@ pub mod pallet {
 		ErrorWhileDeposit,
 		/// Error while using ensure_withdraw from orml currencies
 		ErrorWhileWithdraw,
+		/// Error when a beneficiary doesnt have free balance
+		ErrorWhileBuying,
 		/// Error when an asset does not exist
 		AssetDoesNotExist,
 	}
@@ -246,6 +248,7 @@ pub mod pallet {
 		pub fn sell(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
+			beneficiary: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -253,8 +256,10 @@ pub mod pallet {
 			if let Some(asset) = Self::assets(asset_id) {
 				let asset_id = asset.asset_id;
 
-				T::Currency::ensure_can_withdraw(asset_id, &sender, amount)
-					.map_err(|_e| <Error<T>>::ErrorWhileWithdraw)?;
+				// T::Currency::ensure_can_withdraw(asset_id, &sender, amount)
+				// 	.map_err(|_e| <Error<T>>::ErrorWhileWithdraw)?;
+				
+				// T::Currency::free_balance(asset_id, &beneficiary);
 
 				let total_issuance = T::Currency::total_issuance(asset_id);
 				let issuance_after = total_issuance - amount;
@@ -272,13 +277,13 @@ pub mod pallet {
 				T::Currency::transfer(
 					T::GetNativeCurrencyId::get(),
 					&curve_account,
-					&sender,
+					&beneficiary,
 					return_amount,
 				)
 				.ok();
 
 				Self::deposit_event(Event::CurveSell(
-					sender,
+					beneficiary,
 					asset.curve_id,
 					amount,
 					return_amount,
