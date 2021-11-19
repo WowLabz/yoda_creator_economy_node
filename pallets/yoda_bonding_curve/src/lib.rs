@@ -117,12 +117,12 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// (CurveId, Creator)
-		NewCurve(u64, AccountOf<T>),
-		/// (Buyer, CurveId, Amount, Cost)
-		CurveBuy(AccountOf<T>, u64, BalanceOf<T>, BalanceOf<T>),
-		/// (Seller, CurveId, Amount, Return)
-		CurveSell(AccountOf<T>, u64, BalanceOf<T>, BalanceOf<T>),
+		/// (AssetId, Creator)
+		NewCurve(CurrencyIdOf<T>, AccountOf<T>),
+		/// (Buyer, AssetId, Amount, Cost)
+		CurveBuy(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BalanceOf<T>),
+		/// (Seller, AssetId, Amount, Return)
+		CurveSell(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -135,10 +135,6 @@ pub mod pallet {
 		InsufficentBalanceForPurchase,
 		/// The currency that is trying to be created already exists.
 		CurrencyAlreadyExists,
-		/// Error while using deposit from orml currencies
-		ErrorWhileDeposit,
-		/// Error while using ensure_withdraw from orml currencies
-		ErrorWhileWithdraw,
 		/// Error when a beneficiary doesnt have free balance
 		ErrorWhileBuying,
 		/// Error when an asset does not exist
@@ -160,6 +156,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 
+			log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
 			// Requires an amount to be reserved.
 			ensure!(
 				T::Currency::can_reserve(
@@ -181,8 +178,9 @@ pub mod pallet {
 				asset_id,
 				&T::PalletId::get().into_account(),
 				1u32.saturated_into(),
-			)
-			.map_err(|_e| <Error<T>>::ErrorWhileWithdraw)?;
+			)?;
+			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
+
 			let curve_id = Self::next_id();
 
 			let new_curve = BondingCurve::<T> {
@@ -201,7 +199,7 @@ pub mod pallet {
 			<Curves<T>>::insert(curve_id.clone(), Some(new_curve.clone()));
 			<Assets<T>>::insert(asset_id.clone(), new_curve);
 
-			Self::deposit_event(Event::NewCurve(curve_id, sender));
+			Self::deposit_event(Event::NewCurve(asset_id, sender));
 
 			Ok(())
 		}
@@ -217,6 +215,11 @@ pub mod pallet {
 			if let Some(asset) = Self::assets(asset_id) {
 				let asset_id = asset.asset_id;
 				let total_issuance = T::Currency::total_issuance(asset_id).saturated_into::<u128>();
+
+				log::info!("total issuance {:#?}", total_issuance.clone());
+
+				// Todo: ensure that the total_issuance > amount requested
+
 				let issuance_after = total_issuance + amount.saturated_into::<u128>();
 
 				ensure!(issuance_after <= asset.max_supply, "Exceeded max supply.",);
@@ -225,19 +228,43 @@ pub mod pallet {
 				let integral_after: BalanceOf<T> = asset.integral(issuance_after).saturated_into();
 
 				let cost = integral_after - integral_before;
+
+				log::info!(
+					"Buy free_bal of native_currency {:#?}, cost: {:#?}",
+					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender),
+					cost.clone()
+				);
+				log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
+
 				ensure!(
 					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender)
 						>= cost.into(),
 					Error::<T>::InsufficentBalanceForPurchase,
 				);
+
 				let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
 
-				T::Currency::transfer(T::GetNativeCurrencyId::get(), &sender, &curve_account, cost)
-					.ok(); // <- Why does the `?` operator not work?
+				T::Currency::transfer(
+					T::GetNativeCurrencyId::get(),
+					&sender,
+					&curve_account,
+					cost,
+				)?;
 
-				T::Currency::deposit(asset_id, &sender, amount).ok();
+				// Error: deposit just adds the amount to the account
+				// even if it doesn't exist
+				T::Currency::deposit(asset_id, &sender, amount)?;
 
-				Self::deposit_event(Event::CurveBuy(sender, asset.curve_id, amount, cost));
+				log::info!(
+					"free_bal after token transfer requestor, {:?}",
+					T::Currency::free_balance(asset_id, &sender)
+				);
+				log::info!(
+					"free_bal after token transfer curve_account, {:?}",
+					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &curve_account)
+				);
+
+				Self::deposit_event(Event::CurveBuy(sender, asset.asset_id, amount, cost));
 				Ok(())
 			} else {
 				Err(Error::<T>::CurveDoesNotExist)?
@@ -256,9 +283,7 @@ pub mod pallet {
 			if let Some(asset) = Self::assets(asset_id) {
 				let asset_id = asset.asset_id;
 
-				// T::Currency::ensure_can_withdraw(asset_id, &sender, amount)
-				// 	.map_err(|_e| <Error<T>>::ErrorWhileWithdraw)?;
-				
+				T::Currency::ensure_can_withdraw(asset_id, &sender, amount)?;
 				// T::Currency::free_balance(asset_id, &beneficiary);
 
 				let total_issuance = T::Currency::total_issuance(asset_id);
@@ -272,19 +297,22 @@ pub mod pallet {
 				let return_amount = integral_before - integral_after;
 				let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
 
-				T::Currency::withdraw(asset_id, &sender, amount).ok();
+				log::info!(
+					"sell free_bal of native_currency {:#?}, return_amount: {:#?}",
+					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender),
+					return_amount.clone()
+				);
 
-				T::Currency::transfer(
-					T::GetNativeCurrencyId::get(),
-					&curve_account,
-					&beneficiary,
-					return_amount,
-				)
-				.ok();
+				T::Currency::withdraw(asset_id, &sender, amount)?;
+
+				log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
+				log::info!("AssetID: {:#?}", asset_id.clone());
+
+				T::Currency::transfer(asset_id, &curve_account, &beneficiary, return_amount)?;
 
 				Self::deposit_event(Event::CurveSell(
 					beneficiary,
-					asset.curve_id,
+					asset.asset_id,
 					amount,
 					return_amount,
 				));

@@ -376,7 +376,7 @@ parameter_type_with_key! {
 
 impl orml_tokens::Config for Runtime {
     type Event = Event;
-    type Balance = u128;
+    type Balance = Balance;
     type Amount = i64;
     type CurrencyId = u128;
 	// type OnReceived = ();
