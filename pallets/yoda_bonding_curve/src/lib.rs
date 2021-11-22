@@ -480,6 +480,10 @@ pub mod pallet {
 			beneficiary: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
+			// Todo: check if the asset_id already exists
+			// if exists the default minter will be used
+			// the current mint amount will need to be updated 
+
 			let _sender = ensure_signed(origin)?;
 			T::Currency::deposit(asset_id, &beneficiary, amount)?;
 			Ok(())
