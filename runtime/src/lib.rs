@@ -401,6 +401,7 @@ impl orml_currencies::Config for Runtime {
 
 parameter_types! {
 	pub const CurveDeposit: u128 = 10;
+	pub const CreatorAssetDeposit: u128 = 10;
 	pub const BondingCurveModuleId: PalletId = PalletId(*b"sub/bond");
 }
 
@@ -409,6 +410,7 @@ impl pallet_yoda_bonding_curve::Config for Runtime {
 	type Currency = Currencies;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type CurveDeposit = CurveDeposit;
+	type CreatorAssetDeposit = CreatorAssetDeposit;
 	type PalletId = BondingCurveModuleId;
 }
 
