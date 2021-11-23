@@ -110,7 +110,7 @@ pub mod pallet {
 		/// max minting limit
 		minting_cap: Option<BalanceOf<T>>,
 		/// current mint amount
-		current_mint_amount: BalanceOf<T>,
+		current_mint_amount: Option<BalanceOf<T>>,
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -186,6 +186,8 @@ pub mod pallet {
 		AssetBought(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BalanceOf<T>),
 		/// (Seller, AssetId, Amount, Return)
 		AssetSell(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BalanceOf<T>),
+		/// (Minter, AssetId, MintAmount)
+		AssetMinted(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -204,206 +206,210 @@ pub mod pallet {
 		AssetDoesNotExist,
 		// Error when the mint request is greater that the max_supply of tokensp
 		MintAmountGreaterThanMaxSupply,
+		// Error when you try to mint coins with different account
+		InvalidMinter,
+		// Error when the token exists but there are no minted tokens
+		MintUninitiated
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(0 + T::DbWeight::get().writes(1))]
-		pub fn create(
-			origin: OriginFor<T>,
-			asset_id: CurrencyIdOf<T>,
-			exponent: u32,
-			slope: u128,
-			max_supply: u128,
-			token_name: Vec<u8>,
-			token_symbol: Vec<u8>,
-			token_decimals: u8,
-		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
+		// #[pallet::weight(0 + T::DbWeight::get().writes(1))]
+		// pub fn create(
+		// 	origin: OriginFor<T>,
+		// 	asset_id: CurrencyIdOf<T>,
+		// 	exponent: u32,
+		// 	slope: u128,
+		// 	max_supply: u128,
+		// 	token_name: Vec<u8>,
+		// 	token_decimals: u8,
+		// 	token_symbol: Vec<u8>,
+		// ) -> DispatchResult {
+		// 	let sender = ensure_signed(origin)?;
 
-			log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
-			// Requires an amount to be reserved.
-			ensure!(
-				T::Currency::can_reserve(
-					T::GetNativeCurrencyId::get(),
-					&sender,
-					T::CurveDeposit::get()
-				),
-				Error::<T>::InsufficientBalanceToReserve,
-			);
+		// 	log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
+		// 	// Requires an amount to be reserved.
+		// 	ensure!(
+		// 		T::Currency::can_reserve(
+		// 			T::GetNativeCurrencyId::get(),
+		// 			&sender,
+		// 			T::CurveDeposit::get()
+		// 		),
+		// 		Error::<T>::InsufficientBalanceToReserve,
+		// 	);
 
-			// Ensure that a curve with this id does not already exist.
-			ensure!(
-				T::Currency::total_issuance(asset_id) == 0u32.into(),
-				Error::<T>::CurrencyAlreadyExists,
-			);
+		// 	// Ensure that a curve with this id does not already exist.
+		// 	ensure!(
+		// 		T::Currency::total_issuance(asset_id) == 0u32.into(),
+		// 		Error::<T>::CurrencyAlreadyExists,
+		// 	);
 
-			// Adds 1 of the token to the module account.
-			T::Currency::deposit(
-				asset_id,
-				&T::PalletId::get().into_account(),
-				1u32.saturated_into(),
-			)?;
-			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
+		// 	// Adds 1 of the token to the module account.
+		// 	T::Currency::deposit(
+		// 		asset_id,
+		// 		&T::PalletId::get().into_account(),
+		// 		1u32.saturated_into(),
+		// 	)?;
+		// 	log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
 
-			// Testing to be removed later
-			let acc: AccountOf<T> = T::PalletId::get().into_account();
-			log::info!(
-				"free_bal account {:#?}, bal: {:#?}",
-				acc.clone(),
-				T::Currency::free_balance(asset_id, &acc)
-			);
+		// 	// Testing to be removed later
+		// 	let acc: AccountOf<T> = T::PalletId::get().into_account();
+		// 	log::info!(
+		// 		"free_bal account {:#?}, bal: {:#?}",
+		// 		acc.clone(),
+		// 		T::Currency::free_balance(asset_id, &acc)
+		// 	);
 
-			let curve_id = Self::next_id();
+		// 	let curve_id = Self::next_id();
 
-			let new_curve = BondingCurve::<T> {
-				creator: sender.clone(),
-				asset_id,
-				exponent,
-				slope,
-				max_supply,
-				token_name,
-				token_symbol,
-				token_decimals,
-				curve_id,
-			};
+		// 	let new_curve = BondingCurve::<T> {
+		// 		creator: sender.clone(),
+		// 		asset_id,
+		// 		exponent,
+		// 		slope,
+		// 		max_supply,
+		// 		token_name,
+		// 		token_symbol,
+		// 		token_decimals,
+		// 		curve_id,
+		// 	};
 
-			// Mutations start here
-			<Curves<T>>::insert(curve_id.clone(), Some(new_curve.clone()));
-			<Assets<T>>::insert(asset_id.clone(), new_curve);
+		// 	// Mutations start here
+		// 	<Curves<T>>::insert(curve_id.clone(), Some(new_curve.clone()));
+		// 	<Assets<T>>::insert(asset_id.clone(), new_curve);
 
-			Self::deposit_event(Event::NewCurve(asset_id, sender));
+		// 	Self::deposit_event(Event::NewCurve(asset_id, sender));
 
-			Ok(())
-		}
+		// 	Ok(())
+		// }
 
-		#[pallet::weight(0 + T::DbWeight::get().writes(1))]
-		pub fn buy(
-			origin: OriginFor<T>,
-			asset_id: CurrencyIdOf<T>,
-			amount: BalanceOf<T>,
-		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
+		// #[pallet::weight(0 + T::DbWeight::get().writes(1))]
+		// pub fn buy(
+		// 	origin: OriginFor<T>,
+		// 	asset_id: CurrencyIdOf<T>,
+		// 	amount: BalanceOf<T>,
+		// ) -> DispatchResult {
+		// 	let sender = ensure_signed(origin)?;
 
-			if let Some(asset) = Self::assets(asset_id) {
-				let asset_id = asset.asset_id;
-				let total_issuance = T::Currency::total_issuance(asset_id).saturated_into::<u128>();
+		// 	if let Some(asset) = Self::assets(asset_id) {
+		// 		let asset_id = asset.asset_id;
+		// 		let total_issuance = T::Currency::total_issuance(asset_id).saturated_into::<u128>();
 
-				log::info!("total issuance {:#?}", total_issuance.clone());
+		// 		log::info!("total issuance {:#?}", total_issuance.clone());
 
-				// Todo: ensure that the total_issuance > amount requested
+		// 		// Todo: ensure that the total_issuance > amount requested
 
-				let issuance_after = total_issuance + amount.saturated_into::<u128>();
+		// 		let issuance_after = total_issuance + amount.saturated_into::<u128>();
 
-				ensure!(issuance_after <= asset.max_supply, "Exceeded max supply.",);
+		// 		ensure!(issuance_after <= asset.max_supply, "Exceeded max supply.",);
 
-				let integral_before: BalanceOf<T> = asset.integral(total_issuance).saturated_into();
-				let integral_after: BalanceOf<T> = asset.integral(issuance_after).saturated_into();
+		// 		let integral_before: BalanceOf<T> = asset.integral(total_issuance).saturated_into();
+		// 		let integral_after: BalanceOf<T> = asset.integral(issuance_after).saturated_into();
 
-				let cost = integral_after - integral_before;
+		// 		let cost = integral_after - integral_before;
 
-				log::info!(
-					"Buy free_bal of native_currency {:#?}, cost: {:#?}",
-					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender),
-					cost.clone()
-				);
-				log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
+		// 		log::info!(
+		// 			"Buy free_bal of native_currency {:#?}, cost: {:#?}",
+		// 			T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender),
+		// 			cost.clone()
+		// 		);
+		// 		log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
 
-				ensure!(
-					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender)
-						>= cost.into(),
-					Error::<T>::InsufficentBalanceForPurchase,
-				);
+		// 		ensure!(
+		// 			T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender)
+		// 				>= cost.into(),
+		// 			Error::<T>::InsufficentBalanceForPurchase,
+		// 		);
 
-				let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
+		// 		let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
 
-				// Testing to be removed later
-				let acc: AccountOf<T> = T::PalletId::get().into_sub_account(asset.curve_id);
-				log::info!(
-					"free_bal account {:#?}, bal: {:#?}",
-					acc.clone(),
-					T::Currency::free_balance(asset_id, &acc)
-				);
+		// 		// Testing to be removed later
+		// 		let acc: AccountOf<T> = T::PalletId::get().into_sub_account(asset.curve_id);
+		// 		log::info!(
+		// 			"free_bal account {:#?}, bal: {:#?}",
+		// 			acc.clone(),
+		// 			T::Currency::free_balance(asset_id, &acc)
+		// 		);
 
-				T::Currency::transfer(
-					T::GetNativeCurrencyId::get(),
-					&sender,
-					&curve_account,
-					cost,
-				)?;
+		// 		T::Currency::transfer(
+		// 			T::GetNativeCurrencyId::get(),
+		// 			&sender,
+		// 			&curve_account,
+		// 			cost,
+		// 		)?;
 
-				// Error: deposit just adds the amount to the account
-				// even if it doesn't exist
-				T::Currency::deposit(asset_id, &sender, amount)?;
+		// 		// Error: deposit just adds the amount to the account
+		// 		// even if it doesn't exist
+		// 		T::Currency::deposit(asset_id, &sender, amount)?;
 
-				log::info!(
-					"free_bal after token transfer requestor, {:?}",
-					T::Currency::free_balance(asset_id, &sender)
-				);
-				log::info!(
-					"free_bal after token transfer curve_account, {:?}",
-					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &curve_account)
-				);
+		// 		log::info!(
+		// 			"free_bal after token transfer requestor, {:?}",
+		// 			T::Currency::free_balance(asset_id, &sender)
+		// 		);
+		// 		log::info!(
+		// 			"free_bal after token transfer curve_account, {:?}",
+		// 			T::Currency::free_balance(T::GetNativeCurrencyId::get(), &curve_account)
+		// 		);
 
-				Self::deposit_event(Event::CurveBuy(sender, asset.asset_id, amount, cost));
-				Ok(())
-			} else {
-				Err(Error::<T>::CurveDoesNotExist)?
-			}
-		}
+		// 		Self::deposit_event(Event::CurveBuy(sender, asset.asset_id, amount, cost));
+		// 		Ok(())
+		// 	} else {
+		// 		Err(Error::<T>::CurveDoesNotExist)?
+		// 	}
+		// }
 
-		#[pallet::weight(0 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn sell(
-			origin: OriginFor<T>,
-			asset_id: CurrencyIdOf<T>,
-			beneficiary: AccountOf<T>,
-			amount: BalanceOf<T>,
-		) -> DispatchResult {
-			let sender = ensure_signed(origin)?;
+		// #[pallet::weight(0 + T::DbWeight::get().reads_writes(1,1))]
+		// pub fn sell(
+		// 	origin: OriginFor<T>,
+		// 	asset_id: CurrencyIdOf<T>,
+		// 	beneficiary: AccountOf<T>,
+		// 	amount: BalanceOf<T>,
+		// ) -> DispatchResult {
+		// 	let sender = ensure_signed(origin)?;
 
-			if let Some(asset) = Self::assets(asset_id) {
-				let asset_id = asset.asset_id;
+		// 	if let Some(asset) = Self::assets(asset_id) {
+		// 		let asset_id = asset.asset_id;
 
-				T::Currency::ensure_can_withdraw(asset_id, &sender, amount)?;
-				// T::Currency::free_balance(asset_id, &beneficiary);
+		// 		T::Currency::ensure_can_withdraw(asset_id, &sender, amount)?;
+		// 		// T::Currency::free_balance(asset_id, &beneficiary);
 
-				let total_issuance = T::Currency::total_issuance(asset_id);
-				let issuance_after = total_issuance - amount;
+		// 		let total_issuance = T::Currency::total_issuance(asset_id);
+		// 		let issuance_after = total_issuance - amount;
 
-				let integral_before: BalanceOf<T> =
-					asset.integral(total_issuance.saturated_into::<u128>()).saturated_into();
-				let integral_after: BalanceOf<T> =
-					asset.integral(issuance_after.saturated_into::<u128>()).saturated_into();
+		// 		let integral_before: BalanceOf<T> =
+		// 			asset.integral(total_issuance.saturated_into::<u128>()).saturated_into();
+		// 		let integral_after: BalanceOf<T> =
+		// 			asset.integral(issuance_after.saturated_into::<u128>()).saturated_into();
 
-				let return_amount = integral_before - integral_after;
-				let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
+		// 		let return_amount = integral_before - integral_after;
+		// 		let curve_account = T::PalletId::get().into_sub_account(asset.curve_id);
 
-				log::info!(
-					"sell free_bal of native_currency {:#?}, return_amount: {:#?}",
-					T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender),
-					return_amount.clone()
-				);
+		// 		log::info!(
+		// 			"sell free_bal of native_currency {:#?}, return_amount: {:#?}",
+		// 			T::Currency::free_balance(T::GetNativeCurrencyId::get(), &sender),
+		// 			return_amount.clone()
+		// 		);
 
-				T::Currency::withdraw(asset_id, &sender, amount)?;
+		// 		T::Currency::withdraw(asset_id, &sender, amount)?;
 
-				log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
-				log::info!("AssetID: {:#?}", asset_id.clone());
+		// 		log::info!("NativeCurrencyId: {:#?}", T::GetNativeCurrencyId::get());
+		// 		log::info!("AssetID: {:#?}", asset_id.clone());
 
-				T::Currency::transfer(asset_id, &curve_account, &beneficiary, return_amount)?;
+		// 		T::Currency::transfer(asset_id, &curve_account, &beneficiary, return_amount)?;
 
-				Self::deposit_event(Event::CurveSell(
-					beneficiary,
-					asset.asset_id,
-					amount,
-					return_amount,
-				));
-				Ok(())
-			} else {
-				Err(Error::<T>::CurveDoesNotExist)?
-			}
-		}
+		// 		Self::deposit_event(Event::CurveSell(
+		// 			beneficiary,
+		// 			asset.asset_id,
+		// 			amount,
+		// 			return_amount,
+		// 		));
+		// 		Ok(())
+		// 	} else {
+		// 		Err(Error::<T>::CurveDoesNotExist)?
+		// 	}
+		// }
 
-		#[pallet::weight(0 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(10000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
@@ -438,20 +444,17 @@ pub mod pallet {
 
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
 
-			// initial_supply of the tokens is added to
-			// the creator's account
-			Self::mint(origin.clone(), asset_id, sender.clone(), mint)?;
-
+			
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
-
+			
 			let curve_id = Self::next_id();
-
+			
 			let new_mint_details = MintingData::<T> {
 				minter: sender.clone(),
 				minting_cap: Some(max_supply.clone()),
-				current_mint_amount: mint.clone(),
+				current_mint_amount: None,
 			};
-
+			
 			let new_token = BondingToken::<T> {
 				creator: sender.clone(),
 				asset_id,
@@ -464,8 +467,12 @@ pub mod pallet {
 				curve_id,
 				mint_data: new_mint_details,
 			};
-
+			
 			<AssetsMinted<T>>::insert(asset_id.clone(), new_token);
+
+			// initial_supply of the tokens is added to
+			// the creator's account
+			Self::mint_asset(origin.clone(), asset_id, mint)?;
 
 			Self::deposit_event(Event::AssetCreated(asset_id, sender));
 
@@ -473,23 +480,29 @@ pub mod pallet {
 		}
 
 		#[transactional]
-		#[pallet::weight(100)]
-		pub fn mint(
+		#[pallet::weight(10000)]
+		pub fn mint_asset(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
-			beneficiary: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
-			// Todo: check if the asset_id already exists
-			// if exists the default minter will be used
-			// the current mint amount will need to be updated 
+			let minter = ensure_signed(origin)?;
 
-			let _sender = ensure_signed(origin)?;
-			T::Currency::deposit(asset_id, &beneficiary, amount)?;
-			Ok(())
+			if let Some(mut token) = Self::assets_minted(asset_id) {
+				ensure!(minter == token.mint_data.minter, Error::<T>::InvalidMinter);
+
+				token.mint_data.current_mint_amount = Some(amount); 
+				T::Currency::deposit(asset_id, &minter, amount)?;
+				
+				Self::deposit_event(Event::AssetMinted(minter, asset_id, amount));
+
+				Ok(())
+			} else {
+				Err(Error::<T>::AssetDoesNotExist)?
+			}
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10000)]
 		pub fn buy_asset(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
@@ -501,7 +514,7 @@ pub mod pallet {
 
 			// Todo: ensure that the current mint amount > amount requested
 			ensure!(
-				amount.clone() < token.mint_data.current_mint_amount.clone(),
+				amount.clone() < token.mint_data.current_mint_amount.clone().ok_or(Error::<T>::MintUninitiated)?,
 				<Error<T>>::MintAmountGreaterThanMaxSupply
 			);
 
@@ -534,7 +547,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10000)]
 		pub fn sell_asset(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
@@ -578,7 +591,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10000)]
 		pub fn asset_balance(origin: OriginFor<T>, asset_id: CurrencyIdOf<T>) -> DispatchResult {
 			let from = ensure_signed(origin)?;
 			let bal = T::Currency::free_balance(asset_id, &from);
