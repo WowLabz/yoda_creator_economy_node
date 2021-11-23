@@ -26,6 +26,7 @@ pub mod pallet {
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
+	use codec;
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -80,6 +81,8 @@ pub mod pallet {
 		asset_id: CurrencyIdOf<T>,
 		/// bonding curve type with the config
 		curve: CurveType,
+		/// curve config
+		curve_config: Box<dyn CurveConfig + Clone>,
 		/// The maximum supply that can be minted from the curve.
 		max_supply: BalanceOf<T>,
 		/// the token name
@@ -454,7 +457,6 @@ pub mod pallet {
 			asset_id: CurrencyIdOf<T>,
 			max_supply: BalanceOf<T>,
 			curve_type: CurveType,
-			curve_config: CurveConfig,
 			mint: BalanceOf<T>,
 			token_name: Vec<u8>,
 			token_symbol: Vec<u8>,
