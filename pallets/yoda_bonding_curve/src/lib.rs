@@ -18,6 +18,7 @@ mod benchmarking;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use crate::curves::*;
 	use frame_support::inherent::Vec;
 	use frame_support::traits::{Currency, ExistenceRequirement, Get, Randomness};
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, transactional, PalletId};
@@ -25,7 +26,6 @@ pub mod pallet {
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
-	use crate::curves::*;
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -104,6 +104,50 @@ pub mod pallet {
 		minting_cap: Option<BalanceOf<T>>,
 		/// current mint amount
 		current_mint_amount: Option<BalanceOf<T>>,
+	}
+
+	pub trait CurveConfig {
+		fn integral_before(&self, issuance: u128) -> u128;
+		fn integral_after(&self, issuance: u128) -> u128;
+	}
+
+	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
+	#[cfg_attr(feature = "std", derive(Debug))]
+	pub enum CurveType {
+		Linear,
+	}
+
+	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
+	#[cfg_attr(feature = "std", derive(Debug))]
+	pub struct Linear {
+		exponent: u32,
+		slope: u128,
+	}
+
+	impl Linear {
+		pub fn new(exponent: u32, slope: u128) -> Self {
+			Self { exponent, slope }
+		}
+		/// Integral when the curve is at point `x`.
+		pub fn integral(&self, x: u128) -> u128 {
+			let nexp = self.exponent + 1;
+			x.pow(nexp) * self.slope / nexp as u128
+		}
+	}
+
+	impl Default for Linear {
+		fn default() -> Self {
+			Self { exponent: 1, slope: 1 }
+		}
+	}
+
+	impl CurveConfig for Linear {
+		fn integral_before(&self, issuance: u128) -> u128 {
+			self.integral(issuance).saturated_into()
+		}
+		fn integral_after(&self, issuance: u128) -> u128 {
+			self.integral(issuance).saturated_into()
+		}
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -204,7 +248,7 @@ pub mod pallet {
 		/// Error when the token exists but there are no minted tokens
 		MintUninitiated,
 		/// Error when the curve type is not defined
-		CurveTypeNotDefined
+		CurveTypeNotDefined,
 	}
 
 	#[pallet::call]
@@ -410,6 +454,7 @@ pub mod pallet {
 			asset_id: CurrencyIdOf<T>,
 			max_supply: BalanceOf<T>,
 			curve_type: CurveType,
+			curve_config: CurveConfig,
 			mint: BalanceOf<T>,
 			token_name: Vec<u8>,
 			token_symbol: Vec<u8>,
@@ -438,22 +483,18 @@ pub mod pallet {
 
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
 
-			
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
 
 			let curve_config = match curve_type {
 				CurveType::Linear => Ok(Linear::default()),
-				_ => Err(Error::<T>::CurveTypeNotDefined)
+				_ => Err(Error::<T>::CurveTypeNotDefined),
 			}?;
-			
 			let curve_id = Self::next_id();
-			
 			let new_mint_details = MintingData::<T> {
 				minter: sender.clone(),
 				minting_cap: Some(max_supply.clone()),
 				current_mint_amount: None,
 			};
-			
 			let new_token = BondingToken::<T> {
 				creator: sender.clone(),
 				asset_id,
@@ -465,7 +506,6 @@ pub mod pallet {
 				curve_id,
 				mint_data: new_mint_details,
 			};
-			
 			<AssetsMinted<T>>::insert(asset_id.clone(), new_token);
 
 			// initial_supply of the tokens is added to
@@ -489,9 +529,8 @@ pub mod pallet {
 			if let Some(mut token) = Self::assets_minted(asset_id) {
 				ensure!(minter == token.mint_data.minter, Error::<T>::InvalidMinter);
 
-				token.mint_data.current_mint_amount = Some(amount); 
+				token.mint_data.current_mint_amount = Some(amount);
 				T::Currency::deposit(asset_id, &minter, amount)?;
-				
 				Self::deposit_event(Event::AssetMinted(minter, asset_id, amount));
 
 				Ok(())
@@ -512,7 +551,12 @@ pub mod pallet {
 
 			// Todo: ensure that the current mint amount > amount requested
 			ensure!(
-				amount.clone() < token.mint_data.current_mint_amount.clone().ok_or(Error::<T>::MintUninitiated)?,
+				amount.clone()
+					< token
+						.mint_data
+						.current_mint_amount
+						.clone()
+						.ok_or(Error::<T>::MintUninitiated)?,
 				<Error<T>>::MintAmountGreaterThanMaxSupply
 			);
 
@@ -528,7 +572,7 @@ pub mod pallet {
 
 			let curve = match token.curve {
 				CurveType::Linear(curve_data) => Ok(curve_data),
-				_ => Err(Error::<T>::CurveTypeNotDefined)
+				_ => Err(Error::<T>::CurveTypeNotDefined),
 			}?;
 
 			let integral_before: BalanceOf<T> = curve.integral(total_issuance).saturated_into();
@@ -568,7 +612,7 @@ pub mod pallet {
 
 			let curve = match token.curve {
 				CurveType::Linear(curve_data) => Ok(curve_data),
-				_ => Err(Error::<T>::CurveTypeNotDefined)
+				_ => Err(Error::<T>::CurveTypeNotDefined),
 			}?;
 
 			let integral_before: BalanceOf<T> =
