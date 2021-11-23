@@ -11,6 +11,8 @@ pub use pallet::*;
 // #[cfg(test)]
 // mod tests;
 
+mod curves;
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -23,6 +25,7 @@ pub mod pallet {
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
+	use crate::curves::*;
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -75,10 +78,8 @@ pub mod pallet {
 		creator: AccountOf<T>,
 		/// The asset id of the bonding curve token.
 		asset_id: CurrencyIdOf<T>,
-		/// The exponent of the curve.
-		exponent: u32,
-		/// The slope of the curve.
-		slope: u128,
+		/// bonding curve type with the config
+		curve: CurveType,
 		/// The maximum supply that can be minted from the curve.
 		max_supply: BalanceOf<T>,
 		/// the token name
@@ -91,14 +92,6 @@ pub mod pallet {
 		curve_id: u64,
 		/// mint
 		mint_data: MintingData<T>,
-	}
-
-	impl<T: Config> BondingToken<T> {
-		/// Integral when the curve is at point `x`.
-		pub fn integral(&self, x: u128) -> u128 {
-			let nexp = self.exponent + 1;
-			x.pow(nexp) * self.slope / nexp as u128
-		}
 	}
 
 	#[derive(Encode, Decode, TypeInfo, Clone)]
@@ -204,12 +197,14 @@ pub mod pallet {
 		ErrorWhileBuying,
 		/// Error when an asset does not exist
 		AssetDoesNotExist,
-		// Error when the mint request is greater that the max_supply of tokensp
+		/// Error when the mint request is greater that the max_supply of tokensp
 		MintAmountGreaterThanMaxSupply,
-		// Error when you try to mint coins with different account
+		/// Error when you try to mint coins with different account
 		InvalidMinter,
-		// Error when the token exists but there are no minted tokens
-		MintUninitiated
+		/// Error when the token exists but there are no minted tokens
+		MintUninitiated,
+		/// Error when the curve type is not defined
+		CurveTypeNotDefined
 	}
 
 	#[pallet::call]
@@ -413,9 +408,8 @@ pub mod pallet {
 		pub fn create_asset(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
-			exponent: u32,
-			slope: u128,
 			max_supply: BalanceOf<T>,
+			curve_type: CurveType,
 			mint: BalanceOf<T>,
 			token_name: Vec<u8>,
 			token_symbol: Vec<u8>,
@@ -446,6 +440,11 @@ pub mod pallet {
 
 			
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
+
+			let curve_config = match curve_type {
+				CurveType::Linear => Ok(Linear::default()),
+				_ => Err(Error::<T>::CurveTypeNotDefined)
+			}?;
 			
 			let curve_id = Self::next_id();
 			
@@ -458,8 +457,7 @@ pub mod pallet {
 			let new_token = BondingToken::<T> {
 				creator: sender.clone(),
 				asset_id,
-				exponent,
-				slope,
+				curve: curve_type,
 				max_supply,
 				token_name,
 				token_symbol,
@@ -528,8 +526,13 @@ pub mod pallet {
 				"Exceeded max supply.",
 			);
 
-			let integral_before: BalanceOf<T> = token.integral(total_issuance).saturated_into();
-			let integral_after: BalanceOf<T> = token.integral(issuance_after).saturated_into();
+			let curve = match token.curve {
+				CurveType::Linear(curve_data) => Ok(curve_data),
+				_ => Err(Error::<T>::CurveTypeNotDefined)
+			}?;
+
+			let integral_before: BalanceOf<T> = curve.integral(total_issuance).saturated_into();
+			let integral_after: BalanceOf<T> = curve.integral(issuance_after).saturated_into();
 
 			let cost = integral_after - integral_before;
 
@@ -563,10 +566,15 @@ pub mod pallet {
 			let total_issuance = T::Currency::total_issuance(asset_id);
 			let issuance_after = total_issuance - amount;
 
+			let curve = match token.curve {
+				CurveType::Linear(curve_data) => Ok(curve_data),
+				_ => Err(Error::<T>::CurveTypeNotDefined)
+			}?;
+
 			let integral_before: BalanceOf<T> =
-				token.integral(total_issuance.saturated_into::<u128>()).saturated_into();
+				curve.integral(total_issuance.saturated_into::<u128>()).saturated_into();
 			let integral_after: BalanceOf<T> =
-				token.integral(issuance_after.saturated_into::<u128>()).saturated_into();
+				curve.integral(issuance_after.saturated_into::<u128>()).saturated_into();
 			let return_amount = integral_before - integral_after;
 
 			let token_account = token.mint_data.minter;
