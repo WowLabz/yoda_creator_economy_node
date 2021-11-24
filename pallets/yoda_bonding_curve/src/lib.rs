@@ -26,7 +26,6 @@ pub mod pallet {
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
-	use codec;
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -82,7 +81,7 @@ pub mod pallet {
 		/// bonding curve type with the config
 		curve: CurveType,
 		/// curve config
-		curve_config: Box<dyn CurveConfig + Clone>,
+		curve_config: Box<dyn CurveConfig>,
 		/// The maximum supply that can be minted from the curve.
 		max_supply: BalanceOf<T>,
 		/// the token name
@@ -107,50 +106,6 @@ pub mod pallet {
 		minting_cap: Option<BalanceOf<T>>,
 		/// current mint amount
 		current_mint_amount: Option<BalanceOf<T>>,
-	}
-
-	pub trait CurveConfig {
-		fn integral_before(&self, issuance: u128) -> u128;
-		fn integral_after(&self, issuance: u128) -> u128;
-	}
-
-	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
-	#[cfg_attr(feature = "std", derive(Debug))]
-	pub enum CurveType {
-		Linear,
-	}
-
-	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
-	#[cfg_attr(feature = "std", derive(Debug))]
-	pub struct Linear {
-		exponent: u32,
-		slope: u128,
-	}
-
-	impl Linear {
-		pub fn new(exponent: u32, slope: u128) -> Self {
-			Self { exponent, slope }
-		}
-		/// Integral when the curve is at point `x`.
-		pub fn integral(&self, x: u128) -> u128 {
-			let nexp = self.exponent + 1;
-			x.pow(nexp) * self.slope / nexp as u128
-		}
-	}
-
-	impl Default for Linear {
-		fn default() -> Self {
-			Self { exponent: 1, slope: 1 }
-		}
-	}
-
-	impl CurveConfig for Linear {
-		fn integral_before(&self, issuance: u128) -> u128 {
-			self.integral(issuance).saturated_into()
-		}
-		fn integral_after(&self, issuance: u128) -> u128 {
-			self.integral(issuance).saturated_into()
-		}
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
