@@ -12,8 +12,8 @@ pub trait CurveConfig {
 pub enum CurveType {
 	Linear,
 }
-
 #[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
+
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Linear {
 	exponent: u32,

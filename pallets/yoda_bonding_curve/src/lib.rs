@@ -24,9 +24,9 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, transactional, PalletId};
 	use frame_system::pallet_prelude::*;
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
-	use scale_info::TypeInfo;
-	use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
 	use scale_info::prelude::boxed::Box;
+	use scale_info::TypeInfo;
+	use sp_runtime::traits::{AccountIdConversion, CheckedAdd, SaturatedConversion};
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -107,22 +107,6 @@ pub mod pallet {
 			Ok(Box::new(curve_config))
 		}
 	}
-
-	// impl <T: Config + CurveConfig> CurveConfig for BondingToken<T> {
-	// 	fn integral_before(&self, issuance: u128) -> Option<u128> {
-	// 		let curve = self.get_curve_config().ok();
-
-	// 		match curve {
-	// 			Some(config) => {
-	// 				Some(config.integral(issuance).saturated_into())
-	// 			},
-	// 			None => None
-	// 		}
-	// 	}
-	// 	fn integral_after(&self, issuance: u128) -> u128 {
-	// 		self.integral(issuance).saturated_into()
-	// 	}
-	// }
 
 	#[derive(Encode, Decode, TypeInfo, Clone)]
 	#[scale_info(skip_type_params(T))]
@@ -235,6 +219,8 @@ pub mod pallet {
 		MintUninitiated,
 		/// Error when the curve type is not defined
 		CurveTypeNotDefined,
+		/// Error when there is a overflow in the mint amounts
+		MintAmountOverflow,
 	}
 
 	#[pallet::call]
@@ -510,8 +496,17 @@ pub mod pallet {
 			if let Some(mut token) = Self::assets_minted(asset_id) {
 				ensure!(minter == token.mint_data.minter, Error::<T>::InvalidMinter);
 
-				token.mint_data.current_mint_amount = Some(amount);
+				if let Some(prev_amt) = token.mint_data.current_mint_amount {
+					let new_amt = CheckedAdd::checked_add(&prev_amt, &amount)
+						.ok_or(Error::<T>::MintAmountOverflow)?;
+					token.mint_data.current_mint_amount = Some(new_amt);
+				} else {
+					token.mint_data.current_mint_amount = Some(amount);
+				}
+
 				T::Currency::deposit(asset_id, &minter, amount)?;
+
+				<AssetsMinted<T>>::insert(asset_id.clone(), token);
 				Self::deposit_event(Event::AssetMinted(minter, asset_id, amount));
 
 				Ok(())
@@ -553,8 +548,10 @@ pub mod pallet {
 
 			let curve = token.get_curve_config()?;
 
-			let integral_before: BalanceOf<T> = curve.integral_before(total_issuance).saturated_into();
-			let integral_after: BalanceOf<T> = curve.integral_after(issuance_after).saturated_into();
+			let integral_before: BalanceOf<T> =
+				curve.integral_before(total_issuance).saturated_into();
+			let integral_after: BalanceOf<T> =
+				curve.integral_after(issuance_after).saturated_into();
 
 			let cost = integral_after - integral_before;
 
