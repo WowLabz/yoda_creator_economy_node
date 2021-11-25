@@ -71,7 +71,10 @@ pub mod pallet {
 	#[derive(Encode, Decode, TypeInfo, Clone)]
 	#[scale_info(skip_type_params(T))]
 	#[cfg_attr(feature = "std", derive(Debug))]
-	pub struct BondingToken<T: Config> {
+	pub struct BondingToken<T>
+	where
+		T: Config,
+	{
 		// The module-owned account for this bonding curve.
 		// account: AccountId,
 		/// The creator of the bonding curve.
@@ -80,8 +83,6 @@ pub mod pallet {
 		asset_id: CurrencyIdOf<T>,
 		/// bonding curve type with the config
 		curve: CurveType,
-		/// curve config
-		curve_config: Box<dyn CurveConfig>,
 		/// The maximum supply that can be minted from the curve.
 		max_supply: BalanceOf<T>,
 		/// the token name
@@ -95,6 +96,32 @@ pub mod pallet {
 		/// mint
 		mint_data: MintingData<T>,
 	}
+
+	impl<T: Config> BondingToken<T> {
+		fn get_curve_config(&self) -> Result<Box<dyn CurveConfig>, DispatchError> {
+			let curve_config = match self.curve {
+				CurveType::Linear => Ok(Linear::default()),
+				_ => Err(Error::<T>::CurveTypeNotDefined),
+			}?;
+			Ok(Box::new(curve_config))
+		}
+	}
+
+	// impl <T: Config + CurveConfig> CurveConfig for BondingToken<T> {
+	// 	fn integral_before(&self, issuance: u128) -> Option<u128> {
+	// 		let curve = self.get_curve_config().ok();
+
+	// 		match curve {
+	// 			Some(config) => {
+	// 				Some(config.integral(issuance).saturated_into())
+	// 			},
+	// 			None => None
+	// 		}
+	// 	}
+	// 	fn integral_after(&self, issuance: u128) -> u128 {
+	// 		self.integral(issuance).saturated_into()
+	// 	}
+	// }
 
 	#[derive(Encode, Decode, TypeInfo, Clone)]
 	#[scale_info(skip_type_params(T))]
@@ -442,10 +469,6 @@ pub mod pallet {
 
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
 
-			let curve_config = match curve_type {
-				CurveType::Linear => Ok(Linear::default()),
-				_ => Err(Error::<T>::CurveTypeNotDefined),
-			}?;
 			let curve_id = Self::next_id();
 			let new_mint_details = MintingData::<T> {
 				minter: sender.clone(),
@@ -527,13 +550,10 @@ pub mod pallet {
 				"Exceeded max supply.",
 			);
 
-			let curve = match token.curve {
-				CurveType::Linear(curve_data) => Ok(curve_data),
-				_ => Err(Error::<T>::CurveTypeNotDefined),
-			}?;
+			let curve = token.get_curve_config()?;
 
-			let integral_before: BalanceOf<T> = curve.integral(total_issuance).saturated_into();
-			let integral_after: BalanceOf<T> = curve.integral(issuance_after).saturated_into();
+			let integral_before: BalanceOf<T> = curve.integral_before(total_issuance).saturated_into();
+			let integral_after: BalanceOf<T> = curve.integral_after(issuance_after).saturated_into();
 
 			let cost = integral_after - integral_before;
 
@@ -567,15 +587,12 @@ pub mod pallet {
 			let total_issuance = T::Currency::total_issuance(asset_id);
 			let issuance_after = total_issuance - amount;
 
-			let curve = match token.curve {
-				CurveType::Linear(curve_data) => Ok(curve_data),
-				_ => Err(Error::<T>::CurveTypeNotDefined),
-			}?;
+			let curve = token.get_curve_config()?;
 
 			let integral_before: BalanceOf<T> =
-				curve.integral(total_issuance.saturated_into::<u128>()).saturated_into();
+				curve.integral_before(total_issuance.saturated_into::<u128>()).saturated_into();
 			let integral_after: BalanceOf<T> =
-				curve.integral(issuance_after.saturated_into::<u128>()).saturated_into();
+				curve.integral_after(issuance_after.saturated_into::<u128>()).saturated_into();
 			let return_amount = integral_before - integral_after;
 
 			let token_account = token.mint_data.minter;

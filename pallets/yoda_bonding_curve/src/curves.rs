@@ -5,7 +5,7 @@ use std::clone::Clone;
 use std::fmt::Debug;
 use std::marker::Sized;
 
-pub trait CurveConfig: Clone + Debug + Sized {
+pub trait CurveConfig {
 	fn integral_before(&self, issuance: u128) -> u128;
 	fn integral_after(&self, issuance: u128) -> u128;
 }
