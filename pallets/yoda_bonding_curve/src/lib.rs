@@ -26,6 +26,7 @@ pub mod pallet {
 	use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
+	use scale_info::prelude::boxed::Box;
 
 	type BalanceOf<T> =
 		<<T as Config>::Currency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;

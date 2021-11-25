@@ -1,9 +1,6 @@
 use frame_support::pallet_prelude::*;
 use scale_info::TypeInfo;
 use sp_runtime::SaturatedConversion;
-use std::clone::Clone;
-use std::fmt::Debug;
-use std::marker::Sized;
 
 pub trait CurveConfig {
 	fn integral_before(&self, issuance: u128) -> u128;
