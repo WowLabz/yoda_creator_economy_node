@@ -32,6 +32,11 @@ default-features = false
 features = ['derive']
 version = '1.0'
 
+[dependencies.orml-currencies]
+default-features = false
+git = 'https://github.com/open-web3-stack/open-runtime-module-library'
+version = '0.4.1-dev'
+
 [dependencies.orml-tokens]
 default-features = false
 git = 'https://github.com/open-web3-stack/open-runtime-module-library'
@@ -54,6 +59,11 @@ git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.12"
 
 [dependencies.frame-system]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "polkadot-v0.9.12"
+
+[dependencies.pallet-balances]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "polkadot-v0.9.12"

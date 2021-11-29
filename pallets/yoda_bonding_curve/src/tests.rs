@@ -1,20 +1,32 @@
-use crate::{mock::*, Error};
-use frame_support::{assert_noop, assert_ok};
+use crate::{mock::*, curves::CurveType, Error};
+use frame_support::{assert_noop, assert_ok, dispatch::DispatchError};
+use frame_system::{ensure_signed, RawOrigin};
 
 #[test]
-fn it_works_for_default_value() {
+fn correct_error_for_unsigned_origin_while_creating_asset() {
 	new_test_ext().execute_with(|| {
-		// Dispatch a signed extrinsic.
-		assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
-		// Read pallet storage and assert an expected result.
-		assert_eq!(TemplateModule::something(), Some(42));
+		assert_noop!(
+			PalletYodaBondingCurve::create_asset(
+				Origin::none(),
+				10,
+				10000,
+				CurveType::Linear,
+				2000,
+				b"batman".to_vec(),
+				b"bat".to_vec(),
+				10
+			),
+			DispatchError::BadOrigin,
+		);
 	});
 }
 
-#[test]
-fn correct_error_for_none_value() {
-	new_test_ext().execute_with(|| {
-		// Ensure the expected error is thrown when no value is present.
-		assert_noop!(TemplateModule::cause_error(Origin::signed(1)), Error::<Test>::NoneValue);
-	});
-}
+// #[test]
+// fn it_works_for_default_value() {
+// 	new_test_ext().execute_with(|| {
+// 		// Dispatch a signed extrinsic.
+// 		assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
+// 		// Read pallet storage and assert an expected result.
+// 		assert_eq!(TemplateModule::something(), Some(42));
+// 	});
+// }
