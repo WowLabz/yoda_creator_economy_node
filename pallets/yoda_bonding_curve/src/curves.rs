@@ -12,8 +12,42 @@ pub trait CurveConfig {
 pub enum CurveType {
 	Linear,
 }
-#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
 
+#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Constant {
+	exponent: u32,
+	slope: u128,
+}
+
+impl Constant {
+	pub fn new(exponent: u32, slope: u128) -> Self {
+		Self { exponent, slope }
+	}
+	/// Integral when the curve is at point `x`.
+	pub fn integral(&self, x: u128) -> u128 {
+		let nexp = self.exponent + 1;
+		x.pow(nexp) * self.slope / nexp as u128
+	}
+}
+
+impl Default for Constant {
+	fn default() -> Self {
+		Self { exponent: 1, slope: 1 }
+	}
+}
+
+impl CurveConfig for Constant {
+	fn integral_before(&self, issuance: u128) -> u128 {
+		self.integral(issuance).saturated_into()
+	}
+	fn integral_after(&self, issuance: u128) -> u128 {
+		self.integral(issuance).saturated_into()
+	}
+}
+
+
+#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Linear {
 	exponent: u32,
