@@ -246,6 +246,6 @@ fn it_works_for_buying_as_asset_with_correct_parameters() {
 			b"bat".to_vec(),
 			10
 		));
-		assert_ok!(PalletYodaBondingCurve::buy_asset(Origin::signed(2), 10, 500,));
+		assert_ok!(PalletYodaBondingCurve::buy_asset(Origin::signed(2), 10, 100));
 	});
 }
