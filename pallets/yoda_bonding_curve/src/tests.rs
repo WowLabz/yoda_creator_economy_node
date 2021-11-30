@@ -1,4 +1,4 @@
-use crate::{mock::*, curves::CurveType, Error};
+use crate::{curves::CurveType, mock::*, Error};
 use frame_support::{assert_noop, assert_ok, dispatch::DispatchError};
 use frame_system::{ensure_signed, RawOrigin};
 
@@ -41,16 +41,40 @@ fn correct_error_for_insufficient_balance_to_reserve_while_creating_asset() {
 }
 
 #[test]
-fn create_asset() {
-    let mut extrinsic = ExtBuilder::default().with_balances(
-        vec![
-            (1, 1000000),
-        ]
-    ).build();
-    extrinsic.execute_with(|| {
-		assert_ok!(
+fn it_works_for_create_asset_with_correct_parameters() {
+	let mut extrinsic = ExtBuilder::default().with_balances(vec![(1, 1000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_ok!(PalletYodaBondingCurve::create_asset(
+			Origin::signed(1),
+			10,
+			10000,
+			CurveType::Linear,
+			2000,
+			b"batman".to_vec(),
+			b"bat".to_vec(),
+			10
+		));
+	});
+}
+
+#[test]
+fn correct_error_for_asset_already_existing_while_creating_asset() {
+	let mut extrinsic =
+		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 1000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_ok!(PalletYodaBondingCurve::create_asset(
+			Origin::signed(1),
+			10,
+			10000,
+			CurveType::Linear,
+			2000,
+			b"batman".to_vec(),
+			b"bat".to_vec(),
+			10
+		));
+		assert_noop!(
 			PalletYodaBondingCurve::create_asset(
-				Origin::signed(1),
+				Origin::signed(2),
 				10,
 				10000,
 				CurveType::Linear,
@@ -58,48 +82,11 @@ fn create_asset() {
 				b"batman".to_vec(),
 				b"bat".to_vec(),
 				10
-			)
+			),
+			Error::<Test>::AssetAlreadyExists,
 		);
 	});
 }
-
-#[test]
-fn correct_error_for_asset_already_existing_while_creating_asset() {
-    let mut extrinsic = ExtBuilder::default().with_balances(
-        vec![
-            (1, 1000000),
-            (2, 1000000),
-        ]
-    ).build();
-    extrinsic.execute_with(|| {
-        assert_ok!(
-            PalletYodaBondingCurve::create_asset(
-                Origin::signed(1),
-                10,
-                10000,
-                CurveType::Linear,
-                2000,
-                b"batman".to_vec(),
-                b"bat".to_vec(),
-                10
-            )
-        );
-        assert_noop!(
-            PalletYodaBondingCurve::create_asset(
-                Origin::signed(2),
-                10,
-                10000,
-                CurveType::Linear,
-                2000,
-                b"batman".to_vec(),
-                b"bat".to_vec(),
-                10
-            ),
-            Error::<Test>::AssetAlreadyExists,
-        );
-    });
-}
-
 
 // #[test]
 // fn it_works_for_default_value() {
