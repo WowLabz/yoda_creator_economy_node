@@ -63,6 +63,44 @@ fn create_asset() {
 	});
 }
 
+#[test]
+fn correct_error_for_asset_already_existing_while_creating_asset() {
+    let mut extrinsic = ExtBuilder::default().with_balances(
+        vec![
+            (1, 1000000),
+            (2, 1000000),
+        ]
+    ).build();
+    extrinsic.execute_with(|| {
+        assert_ok!(
+            PalletYodaBondingCurve::create_asset(
+                Origin::signed(1),
+                10,
+                10000,
+                CurveType::Linear,
+                2000,
+                b"batman".to_vec(),
+                b"bat".to_vec(),
+                10
+            )
+        );
+        assert_noop!(
+            PalletYodaBondingCurve::create_asset(
+                Origin::signed(2),
+                10,
+                10000,
+                CurveType::Linear,
+                2000,
+                b"batman".to_vec(),
+                b"bat".to_vec(),
+                10
+            ),
+            Error::<Test>::AssetAlreadyExists,
+        );
+    });
+}
+
+
 // #[test]
 // fn it_works_for_default_value() {
 // 	new_test_ext().execute_with(|| {
