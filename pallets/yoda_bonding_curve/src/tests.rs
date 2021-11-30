@@ -88,12 +88,68 @@ fn correct_error_for_asset_already_existing_while_creating_asset() {
 	});
 }
 
-// #[test]
-// fn it_works_for_default_value() {
-// 	new_test_ext().execute_with(|| {
-// 		// Dispatch a signed extrinsic.
-// 		assert_ok!(TemplateModule::do_something(Origin::signed(1), 42));
-// 		// Read pallet storage and assert an expected result.
-// 		assert_eq!(TemplateModule::something(), Some(42));
-// 	});
-// }
+#[test]
+fn correct_error_while_buying_an_asset_that_does_not_exist() {
+	let mut extrinsic =
+		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 1000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_noop!(
+			PalletYodaBondingCurve::buy_asset(
+				Origin::signed(1),
+				30,
+				3000,
+			),
+			Error::<Test>::AssetDoesNotExist,
+		);
+	});
+}
+
+#[test]
+fn correct_error_while_buying_an_asset_whose_amount_is_greater_than_the_current_token_supply() {
+	let mut extrinsic =
+		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 1000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_ok!(PalletYodaBondingCurve::create_asset(
+			Origin::signed(1),
+			10,
+			10000,
+			CurveType::Linear,
+			2000,
+			b"batman".to_vec(),
+			b"bat".to_vec(),
+			10
+		));
+		assert_noop!(
+			PalletYodaBondingCurve::buy_asset(
+				Origin::signed(2),
+				10,
+				3000,
+			),
+			Error::<Test>::MintAmountGreaterThanMaxSupply,
+		);
+	});
+}
+
+fn it_works_for_buying_as_asset_with_correct_parameters() {
+	let mut extrinsic =
+		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 1000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_ok!(PalletYodaBondingCurve::create_asset(
+			Origin::signed(1),
+			10,
+			10000,
+			CurveType::Linear,
+			2000,
+			b"batman".to_vec(),
+			b"bat".to_vec(),
+			10
+		));
+		assert_ok!(
+			PalletYodaBondingCurve::buy_asset(
+				Origin::signed(2),
+				10,
+				500,
+			)
+		);
+	});
+}
