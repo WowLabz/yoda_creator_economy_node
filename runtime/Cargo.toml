@@ -2,7 +2,7 @@
 name = 'yoda-creator-economy-runtime'
 version = '3.0.0-monthly-2021-10'
 description = 'Creator Economy'
-edition = '2018'
+edition = '2021'
 license = 'Unlicense'
 publish = false
 

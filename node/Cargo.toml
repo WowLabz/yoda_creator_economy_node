@@ -2,7 +2,7 @@
 name = 'yoda-creator-economy'
 version = '3.0.0-monthly-2021-10'
 description = 'Creator Economy'
-edition = '2018'
+edition = '2021'
 license = 'Apache-2.0'
 publish = false
 repository = 'https://github.com/WowLabz/yoda_creator_economy_node'
