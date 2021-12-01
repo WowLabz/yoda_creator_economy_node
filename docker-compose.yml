@@ -1,17 +1,15 @@
 version: "3.2"
 
 services:
-  yoda_creator_economy:
-    container_name: yoda-creator-economy
-    image: paritytech/ci-linux:974ba3ac-20201006
-    working_dir: /var/www/yoda-creator-economy-node
+  yoda_creator_economy_node:
+    image: yoda_creator_economy_node
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "9944:9944"
     environment:
       - CARGO_HOME=/var/www/yoda-creator-economy-node/.cargo
     volumes:
       - .:/var/www/yoda-creator-economy-node
-      - type: bind
-        source: ./.local
-        target: /root/.local
     command: bash -c "cargo build --release && ./target/release/yoda-creator-economy --dev --tmp"
