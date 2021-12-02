@@ -250,6 +250,50 @@ fn correct_error_for_unsigned_origin_while_selling_asset() {
 }
 
 #[test]
+fn correct_error_while_selling_an_asset_that_does_not_exist() {
+	let mut extrinsic =
+		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 1000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_noop!(
+			PalletYodaBondingCurve::sell_asset(
+				Origin::signed(1),
+				10,
+				ensure_signed(Origin::signed(2)).unwrap(),
+				5000,
+			),
+			Error::<Test>::AssetDoesNotExist,
+		);
+	});
+}
+
+#[test]
+fn correct_error_when_the_seller_sells_for_amount_more_than_in_the_network() {
+	let mut extrinsic =
+		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 2000000)]).build();
+	extrinsic.execute_with(|| {
+		assert_ok!(PalletYodaBondingCurve::create_asset(
+			Origin::signed(1),
+			10,
+			10000,
+			CurveType::Linear,
+			2000,
+			b"batman".to_vec(),
+			b"bat".to_vec(),
+			10
+		));
+		assert_noop!(
+			PalletYodaBondingCurve::sell_asset(
+				Origin::signed(1),
+				10,
+				ensure_signed(Origin::signed(2)).unwrap(),
+				1000000,
+			),
+			orml_tokens::Error::<Test>::BalanceTooLow
+		);
+	});
+}
+
+#[test]
 fn it_works_for_sell_asset_with_correct_parameters() {
 	let mut extrinsic =
 		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 2000000)]).build();
