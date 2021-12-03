@@ -18,6 +18,7 @@ fn correct_error_for_unsigned_origin_while_creating_asset() {
 			),
 			DispatchError::BadOrigin,
 		);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 	});
 }
 
@@ -37,6 +38,7 @@ fn correct_error_for_insufficient_balance_to_reserve_while_creating_asset() {
 			),
 			Error::<Test>::InsufficientBalanceToReserve,
 		);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 	});
 }
 
@@ -75,6 +77,7 @@ fn correct_error_for_asset_already_existing_while_creating_asset() {
 fn it_works_for_create_asset_with_correct_parameters() {
 	let mut extrinsic = ExtBuilder::default().with_balances(vec![(1, 1000000)]).build();
 	extrinsic.execute_with(|| {
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 		assert_ok!(PalletYodaBondingCurve::create_asset(
 			Origin::signed(1),
 			10,
@@ -85,6 +88,25 @@ fn it_works_for_create_asset_with_correct_parameters() {
 			b"bat".to_vec(),
 			10
 		));
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 1);
+		assert_eq!(
+			PalletYodaBondingCurve::assets_minted(10),
+			Some(crate::BondingToken::<Test> {
+				creator: 1,
+				asset_id: 10,
+				curve: CurveType::Linear,
+				max_supply: 10000,
+				token_name: b"batman".to_vec(),
+				token_symbol: b"bat".to_vec(),
+				token_decimals: 10,
+				curve_id: 0,
+				mint_data: crate::MintingData::<Test> {
+					minter: 1,
+					minting_cap: Some(10000),
+					current_mint_amount: Some(2000),
+				},
+			})
+		);
 	});
 }
 
@@ -104,6 +126,7 @@ fn correct_error_for_unsigned_origin_while_minting_asset() {
 			),
 			DispatchError::BadOrigin,
 		);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 	});
 }
 
@@ -114,6 +137,7 @@ fn correct_error_for_asset_does_not_exist_while_minting_asset() {
 			PalletYodaBondingCurve::mint_asset(Origin::signed(1), 10, 10000,),
 			Error::<Test>::AssetDoesNotExist,
 		);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 	});
 }
 
@@ -122,6 +146,7 @@ fn correct_error_for_invalid_minter_while_minting_asset() {
 	let mut extrinsic =
 		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 2000000)]).build();
 	extrinsic.execute_with(|| {
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 		assert_ok!(PalletYodaBondingCurve::create_asset(
 			Origin::signed(1),
 			10,
@@ -132,10 +157,12 @@ fn correct_error_for_invalid_minter_while_minting_asset() {
 			b"bat".to_vec(),
 			10
 		));
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 1);
 		assert_noop!(
 			PalletYodaBondingCurve::mint_asset(Origin::signed(2), 10, 10000,),
 			Error::<Test>::InvalidMinter,
 		);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 1);
 	});
 }
 
@@ -144,6 +171,7 @@ fn it_works_for_mint_asset_with_correct_parameters() {
 	let mut extrinsic =
 		ExtBuilder::default().with_balances(vec![(1, 1000000), (2, 2000000)]).build();
 	extrinsic.execute_with(|| {
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 0);
 		assert_ok!(PalletYodaBondingCurve::create_asset(
 			Origin::signed(1),
 			10,
@@ -154,7 +182,45 @@ fn it_works_for_mint_asset_with_correct_parameters() {
 			b"bat".to_vec(),
 			10
 		));
-		assert_ok!(PalletYodaBondingCurve::mint_asset(Origin::signed(1), 10, 10000,),);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 1);
+		assert_eq!(
+			PalletYodaBondingCurve::assets_minted(10),
+			Some(crate::BondingToken::<Test> {
+				creator: 1,
+				asset_id: 10,
+				curve: CurveType::Linear,
+				max_supply: 10000,
+				token_name: b"batman".to_vec(),
+				token_symbol: b"bat".to_vec(),
+				token_decimals: 10,
+				curve_id: 0,
+				mint_data: crate::MintingData::<Test> {
+					minter: 1,
+					minting_cap: Some(10000),
+					current_mint_amount: Some(2000),
+				},
+			})
+		);
+		assert_ok!(PalletYodaBondingCurve::mint_asset(Origin::signed(1), 10, 10000));
+		assert_eq!(
+			PalletYodaBondingCurve::assets_minted(10),
+			Some(crate::BondingToken::<Test> {
+				creator: 1,
+				asset_id: 10,
+				curve: CurveType::Linear,
+				max_supply: 10000,
+				token_name: b"batman".to_vec(),
+				token_symbol: b"bat".to_vec(),
+				token_decimals: 10,
+				curve_id: 0,
+				mint_data: crate::MintingData::<Test> {
+					minter: 1,
+					minting_cap: Some(10000),
+					current_mint_amount: Some(12000),
+				},
+			})
+		);
+		assert_eq!(crate::AssetsMinted::<Test>::iter().count(), 1);
 	});
 }
 

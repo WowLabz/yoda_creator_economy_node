@@ -35,30 +35,30 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId,
 	>>::CurrencyId;
 
-	#[derive(Encode, Decode, TypeInfo, Clone)]
+	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
 	#[scale_info(skip_type_params(T))]
 	#[cfg_attr(feature = "std", derive(Debug))]
 	pub struct BondingToken<T: Config> {
 		// The module-owned account for this bonding curve.
 		// account: AccountId,
 		/// The creator of the bonding curve.
-		creator: AccountOf<T>,
+		pub(super) creator: AccountOf<T>,
 		/// The asset id of the bonding curve token.
-		asset_id: CurrencyIdOf<T>,
+		pub(super) asset_id: CurrencyIdOf<T>,
 		/// bonding curve type with the config
-		curve: CurveType,
+		pub(super) curve: CurveType,
 		/// The maximum supply that can be minted from the curve.
-		max_supply: BalanceOf<T>,
+		pub(super) max_supply: BalanceOf<T>,
 		/// the token name
-		token_name: Vec<u8>,
+		pub(super) token_name: Vec<u8>,
 		/// The token symbol
-		token_symbol: Vec<u8>,
+		pub(super) token_symbol: Vec<u8>,
 		/// Token decimals
-		token_decimals: u8,
+		pub(super) token_decimals: u8,
 		/// token bonding curve_id
-		curve_id: u64,
+		pub(super) curve_id: u64,
 		/// mint
-		mint_data: MintingData<T>,
+		pub(super) mint_data: MintingData<T>,
 	}
 
 	impl<T: Config> BondingToken<T> {
@@ -71,16 +71,16 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Encode, Decode, TypeInfo, Clone)]
+	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
 	#[scale_info(skip_type_params(T))]
 	#[cfg_attr(feature = "std", derive(Debug))]
 	pub struct MintingData<T: Config> {
 		/// accountId of the minter
-		minter: AccountOf<T>,
+		pub(super) minter: AccountOf<T>,
 		/// max minting limit
-		minting_cap: Option<BalanceOf<T>>,
+		pub(super) minting_cap: Option<BalanceOf<T>>,
 		/// current mint amount
-		current_mint_amount: Option<BalanceOf<T>>,
+		pub(super) current_mint_amount: Option<BalanceOf<T>>,
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
