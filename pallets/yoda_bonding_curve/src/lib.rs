@@ -388,12 +388,7 @@ pub mod pallet {
 			)?;
 
 			for beneficiary in &beneficiaries {
-				T::Currency::transfer(
-					asset_id,
-					&token.mint_data.minter,
-					beneficiary,
-					amount,
-				)?;
+				T::Currency::transfer(asset_id, &token.mint_data.minter, beneficiary, amount)?;
 			}
 
 			Self::deposit_event(Event::AssetTokensAirDropped(
@@ -402,6 +397,43 @@ pub mod pallet {
 				token.mint_data.minter,
 				beneficiaries.clone(),
 			));
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn current_asset_price(
+			origin: OriginFor<T>,
+			asset_id: CurrencyIdOf<T>,
+		) -> DispatchResult {
+			let _caller = ensure_signed(origin.clone())?;
+			// base_price = 0.01 YODA
+			// market_cap_at_genesis = 0.01 * max_token_supply
+			// 0.01 * 10000 = 100
+			// spot_price = market_cap / total_assets_minted
+			// 100 / 1000 = 0.1
+			// market_cap = spot_price * max_token_supply
+			// 0.1 * 10000 = 1000
+			// spot_price = market_cap / total_assets_minted
+			// 1000 / 2000 = 0.5
+			// market_cap = total_supply(total_issuance) * price;
+			// price = market_cap / circulating_supply (minted you can say)
+
+			const BASE_PRICE: u128 = 1;
+
+			let token = Self::assets_minted(asset_id).ok_or(<Error<T>>::AssetDoesNotExist)?;
+			let max_token_supply = token.mint_data.minting_cap.unwrap_or(0u128.saturated_into());
+			let total_assets_minted =
+				T::Currency::total_issuance(asset_id).saturated_into::<u128>();
+			let curve = token.get_curve_config()?;
+
+			let market_cap_at_genesis = BASE_PRICE * max_token_supply.saturated_into::<u128>();
+			let spot_price_at_genesis = market_cap_at_genesis / total_assets_minted;
+
+			let market_cap = spot_price_at_genesis * max_token_supply.saturated_into::<u128>();
+
+			let spot_price = market_cap / total_assets_minted;
+			// let spot_price: BalanceOf<T> = curve.integral_before(total_issuance).saturated_into();
+
 			Ok(())
 		}
 	}
