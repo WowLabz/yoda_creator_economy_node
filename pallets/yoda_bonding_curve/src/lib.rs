@@ -143,6 +143,8 @@ pub mod pallet {
 		AssetSell(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>, BalanceOf<T>),
 		/// (Minter, AssetId, MintAmount)
 		AssetMinted(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>),
+		/// (AssetId, Amount, FromAccount, ToAccounts)
+		AssetTokensAirDropped(CurrencyIdOf<T>, BalanceOf<T>, AccountOf<T>, Vec<AccountOf<T>>),
 	}
 
 	#[pallet::error]
@@ -366,21 +368,18 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
+		#[pallet::weight(10000)]
 		pub fn air_drop(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
 			beneficiaries: Vec<AccountOf<T>>,
 			amount: BalanceOf<T>,
 		) -> DispatchResult {
-			let seller = ensure_signed(origin)?;
+			let _caller = ensure_signed(origin)?;
 
 			let token = Self::assets_minted(asset_id).ok_or(<Error<T>>::AssetDoesNotExist)?;
 			let total_withdraw_amount: BalanceOf<T> =
 				(amount.saturated_into::<u128>() * beneficiaries.len() as u128).saturated_into();
-
-			// let total_withdraw_amount: BalanceOf<T> =
-			// 	(amount * beneficiaries.len());
 
 			T::Currency::ensure_can_withdraw(
 				asset_id,
@@ -388,25 +387,21 @@ pub mod pallet {
 				total_withdraw_amount,
 			)?;
 
-			for benficiary in beneficiaries {
-				// T::Currency::transfer(
-				// 	T::GetNativeCurrencyId::get(),
-				// 	&seller,
-				// 	&token_account,
-				// 	return_amount,
-				// )?;
+			for beneficiary in &beneficiaries {
+				T::Currency::transfer(
+					asset_id,
+					&token.mint_data.minter,
+					beneficiary,
+					amount,
+				)?;
 			}
-			// transfer network tokens from the seller to admin
 
-			// transfer the creator tokens from the seller to beneficiary
-			// T::Currency::transfer(asset_id, &seller, &beneficiary, amount)?;
-
-			// Self::deposit_event(Event::AssetSell(
-			// 	beneficiary,
-			// 	token.asset_id,
-			// 	amount,
-			// 	return_amount,
-			// ));
+			Self::deposit_event(Event::AssetTokensAirDropped(
+				token.asset_id,
+				amount,
+				token.mint_data.minter,
+				beneficiaries.clone(),
+			));
 			Ok(())
 		}
 	}

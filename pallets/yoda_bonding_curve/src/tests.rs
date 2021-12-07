@@ -382,3 +382,33 @@ fn it_works_for_sell_asset_with_correct_parameters() {
 		),);
 	});
 }
+
+// #[test]
+// fn correct_error_for_unsigned_origin_while_air_drop() {
+// 	new_test_ext().execute_with(|| {
+// 		assert_ok!(PalletYodaBondingCurve::create_asset(
+// 			Origin::signed(1),
+// 			10,
+// 			10000,
+// 			CurveType::Linear,
+// 			2000,
+// 			b"batman".to_vec(),
+// 			b"bat".to_vec(),
+// 			10
+// 		));
+// 		assert_noop!(
+// 			PalletYodaBondingCurve::air_drop(
+// 				Origin::none(),
+// 				10,
+// 				vec![
+// 					Origin::signed(2),
+// 					Origin::signed(3),
+// 					Origin::signed(4),
+// 					Origin::signed(5),
+// 				],
+// 				500,
+// 			),
+// 			DispatchError::BadOrigin,
+// 		);
+// 	});
+// }
