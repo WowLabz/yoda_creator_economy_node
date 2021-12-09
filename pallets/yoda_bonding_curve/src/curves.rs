@@ -128,6 +128,13 @@ impl CalculatePurchaseAndSellReturn {
 
 		}
 	}
+	
+	pub fn integral_sell(&self, precision: u128, base_D: u128) -> u128 {
+		let power: u128 = (self.power.base_N / base_D)
+		.pow(self.power.exp_N as u32 / self.power.exp_D as u32)*2;
+		let power_with_precision = power.pow(precision as u32);
+		return power_with_precision
+	}
 
 	pub fn calculate_sale_return(self,
 		supply: u128, reserve_balance: u128,
