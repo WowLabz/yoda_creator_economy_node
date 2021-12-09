@@ -82,12 +82,14 @@ impl CurveConfig for Linear {
 
 const MAX_RESERVE_RATIO: u128 = 1000000;
 
+#[derive(Copy, Clone)]
 pub struct Power {
 	base_N: u128,
 	base_D: u128,
 	exp_N: u128,
 	exp_D: u128,
 }
+#[derive(Copy, Clone)]
 pub struct CalculatePurchaseAndSellReturn {
 	pub supply: u128,
 	pub reserve_balance: u128,
@@ -149,10 +151,14 @@ impl CalculatePurchaseAndSellReturn {
 				} else {
 					let result: u128 = reserve_balance.mul(sell_amount).div(supply);
 					let precision: u128 = 10;
-					let old_balance: u128 = reserve_balance.mul(result);
+					let base_D: u128 = supply - sell_amount;
+					let value: u128 = self.integral_sell(precision, base_D);
+					let old_balance: u128 = reserve_balance.mul(value);
 					let new_balance: u128 = reserve_balance << precision;
 					return (old_balance - new_balance).div(result)
 				}	
 
 }
-} 
+	
+}
+
