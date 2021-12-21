@@ -83,10 +83,10 @@ const MAX_RESERVE_RATIO: u128 = 1000000;
 
 #[derive(Copy, Clone)]
 pub struct Power {
-	base_N: u128,
-	base_D: u128,
-	exp_N: u128,
-	exp_D: u128,
+	pub base_N: u128,
+	pub base_D: u128,
+	pub exp_N: u128,
+	pub exp_D: u128,
 }
 #[derive(Copy, Clone)]
 pub struct CalculatePurchaseAndSellReturn {
@@ -122,8 +122,7 @@ impl CalculatePurchaseAndSellReturn {
 		if deposit_amount == 0 {
 			return 0;
 		} else {
-			// let result: u128 = supply.mul(deposit_amount).div(reserve_balance);
-			let result = supply.mul(deposit_amount).div(reserve_ratio);
+			let result: u128 = supply.mul(deposit_amount).div(reserve_balance);
 			let precision: u128 = 10;
 			let base_N: u128 = deposit_amount + reserve_balance;
 			let value: u128 = self.integral_purchase(precision, base_N);

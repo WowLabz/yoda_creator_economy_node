@@ -60,6 +60,7 @@ pub use sp_runtime::{Perbill, Permill};
 pub use pallet_template;
 pub use pallet_yoda_assets;
 pub use pallet_yoda_bonding_curve;
+pub use pallet_continuous_curve;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -414,6 +415,15 @@ impl pallet_yoda_bonding_curve::Config for Runtime {
 	type PalletId = BondingCurveModuleId;
 }
 
+impl pallet_continuous_curve::Config for Runtime {
+	type Event = Event;
+	type Currency = Currencies;
+	type ReserveCurrency = Balances;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type CurveDeposit = CurveDeposit;
+	type CreatorAssetDeposit = CreatorAssetDeposit;
+	type PalletId = BondingCurveModuleId;
+}
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
@@ -437,7 +447,8 @@ construct_runtime!(
 		YodaAssets: pallet_yoda_assets::{Pallet, Call, Storage, Event<T>},
 		Tokens: orml_tokens::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call, Event<T>},
-		YodaBondingCurve: pallet_yoda_bonding_curve::{Pallet, Call, Storage, Event<T>}
+		YodaBondingCurve: pallet_yoda_bonding_curve::{Pallet, Call, Storage, Event<T>},
+		ContinuousCurve: pallet_continuous_curve::{Pallet, Call, Storage, Event<T>}
 	}
 );
 

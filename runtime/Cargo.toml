@@ -24,6 +24,11 @@ default-features = false
 path = '../pallets/yoda_bonding_curve'
 version = '1.0.0'
 
+[dependencies.pallet-continuous-curve]
+default-features = false
+path = '../pallets/continuous_curve'
+version = '1.0.0'
+
 [dependencies.orml-currencies]
 default-features = false
 git = 'https://github.com/open-web3-stack/open-runtime-module-library'
@@ -202,6 +207,7 @@ runtime-benchmarks = [
     'pallet-template/runtime-benchmarks',
     'pallet-yoda-assets/runtime-benchmarks',
     'pallet-yoda-bonding-curve/runtime-benchmarks',
+    'pallet-continuous-curve/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
 ]
@@ -224,6 +230,7 @@ std = [
     'pallet-template/std',
     'pallet-yoda-assets/std',
     'pallet-yoda-bonding-curve/std',
+    'pallet-continuous-curve/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',

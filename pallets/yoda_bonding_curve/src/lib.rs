@@ -145,6 +145,8 @@ pub mod pallet {
 		AssetMinted(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>),
 		/// (AssetId, Amount, FromAccount, ToAccounts)
 		AssetTokensAirDropped(CurrencyIdOf<T>, BalanceOf<T>, AccountOf<T>, Vec<AccountOf<T>>),
+		/// (AssetId, Amount)
+		AssetCurrentPrice(CurrencyIdOf<T>, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -418,22 +420,26 @@ pub mod pallet {
 			// market_cap = total_supply(total_issuance) * price;
 			// price = market_cap / circulating_supply (minted you can say)
 
-			const BASE_PRICE: u128 = 1;
+			// const BASE_PRICE: u128 = 1;
+			// const CHECK_PRICE: u128 = 0;
 
 			let token = Self::assets_minted(asset_id).ok_or(<Error<T>>::AssetDoesNotExist)?;
-			let max_token_supply = token.mint_data.minting_cap.unwrap_or(0u128.saturated_into());
-			let total_assets_minted =
-				T::Currency::total_issuance(asset_id).saturated_into::<u128>();
+			// let max_token_supply = token.mint_data.minting_cap.unwrap_or(0u128.saturated_into());
+			// let total_assets_minted =
+			// 	T::Currency::total_issuance(asset_id).saturated_into::<u128>();
+			// 	if BASE_PRICE >= 1  {
+			// 		let market_cap_at_genesis = BASE_PRICE * max_token_supply.saturated_into::<u128>();
+			// 		let spot_price_at_genesis = market_cap_at_genesis / total_assets_minted;
+			// 	} else if BASE_PRICE < spot_price_at_genesis {
+			// 		let market_cap = spot_price_at_genesis * max_token_supply.saturated_into::<u128>();
+			// 		let spot_price = market_cap / total_assets_minted;
+			// 	}
 			let curve = token.get_curve_config()?;
+			let total_issuance = T::Currency::total_issuance(asset_id).saturated_into::<u128>();
+			let current_price: BalanceOf<T> =
+				curve.integral_before(total_issuance).saturated_into();
 
-			let market_cap_at_genesis = BASE_PRICE * max_token_supply.saturated_into::<u128>();
-			let spot_price_at_genesis = market_cap_at_genesis / total_assets_minted;
-
-			let market_cap = spot_price_at_genesis * max_token_supply.saturated_into::<u128>();
-
-			let spot_price = market_cap / total_assets_minted;
-			// let spot_price: BalanceOf<T> = curve.integral_before(total_issuance).saturated_into();
-
+			Self::deposit_event(Event::AssetCurrentPrice(asset_id, current_price));
 			Ok(())
 		}
 	}
