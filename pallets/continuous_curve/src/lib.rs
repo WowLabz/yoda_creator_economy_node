@@ -65,16 +65,6 @@ pub mod pallet {
 		pub(super) mint_data: MintingData<T>,
 	}
 
-	impl<T: Config> BondingToken<T> {
-		fn get_curve_config(&self) -> Result<Box<dyn CurveConfig>, DispatchError> {
-			let curve_config = match self.curve {
-				CurveType::Linear => Ok(Linear::default()),
-				_ => Err(Error::<T>::CurveTypeNotDefined),
-			}?;
-			Ok(Box::new(curve_config))
-		}
-	}
-
 	#[derive(Encode, Decode, TypeInfo, Clone, PartialEq)]
 	#[scale_info(skip_type_params(T))]
 	#[cfg_attr(feature = "std", derive(Debug))]
@@ -182,42 +172,132 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(10000 + T::DbWeight::get().reads_writes(1,1))]
+		pub fn create_token(
+			origin: OriginFor<T>,
+			asset_id: CurrencyIdOf<T>,
+			max_supply: BalanceOf<T>,
+			curve_type: CurveType,
+			reserve_amt: BalanceOf<T>,
+			token_name: Vec<u8>,
+			token_symbol: Vec<u8>,
+			token_decimals: u8,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin.clone())?;
+
+			// Requires an amount to be reserved.
+			ensure!(
+				T::Currency::can_reserve(
+					T::GetNativeCurrencyId::get(),
+					&sender,
+					T::CreatorAssetDeposit::get()
+				),
+				Error::<T>::InsufficientBalanceToReserve,
+			);
+
+			// Ensure that a curve with this id does not already exist.
+			ensure!(
+				T::Currency::total_issuance(asset_id) == 0u32.into(),
+				Error::<T>::AssetAlreadyExists,
+			);
+
+			// Ensure that the mint amount < max_supply
+			// ensure!(mint.clone() < max_supply.clone(), Error::<T>::MintAmountGreaterThanMaxSupply);
+
+			let curve_id = Self::next_id();
+			let new_mint_details = MintingData::<T> {
+				minter: sender.clone(),
+				minting_cap: Some(max_supply.clone()),
+				current_mint_amount: None,
+			};
+
+			let new_token = BondingToken::<T> {
+				creator: sender.clone(),
+				asset_id,
+				curve: curve_type,
+				max_supply,
+				token_name,
+				token_symbol,
+				token_decimals,
+				curve_id,
+				mint_data: new_mint_details,
+			};
+			<AssetsMinted<T>>::insert(asset_id.clone(), new_token);
+
+			// initial_supply of the tokens is added to
+			// the creator's account
+			Self::mint(origin.clone(), asset_id, reserve_amt)?;
+
+			Self::deposit_event(Event::AssetCreated(asset_id, sender));
+			Ok(())
+		}
+
+		#[pallet::weight(10000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn mint(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
 			reserve_amt: BalanceOf<T>,
 		) -> DispatchResult {
-			let sender = ensure_signed(origin.clone())?;
+			let minter = ensure_signed(origin.clone())?;
 
-			let current_total_issuance = T::Currency::total_issuance(asset_id);
-			let reserve_balance = T::ReserveCurrency::reserved_balance(&sender);
-			let reserve_ratio = sp_runtime::Permill::from_rational(50u32, 100u32);
+			if let Some(mut token) = Self::assets_minted(asset_id) {
+				let current_total_issuance = T::Currency::total_issuance(asset_id);
+				let reserve_balance = T::ReserveCurrency::reserved_balance(&minter);
+				let (n, _d) = token.curve.get_reserve_ratio();
+				// let reserve_ratio = sp_runtime::Permill::from_rational(50u32, 100u32);
 
-			let current_token_model = CalculatePurchaseAndSellReturn {
-				supply: current_total_issuance.saturated_into(),
-				reserve_balance: reserve_balance.saturated_into(),
-				reserve_ratio: 5u128,
-				deposit_amount: reserve_amt.saturated_into(),
-				power: Power { base_N: 10, base_D: 10, exp_N: 1, exp_D: 1 },
-			};
+				let current_token_model = CalculatePurchaseAndSellReturn {
+					supply: current_total_issuance.saturated_into(),
+					reserve_balance: reserve_balance.saturated_into(),
+					reserve_ratio: 50u128,
+					deposit_amount: reserve_amt.saturated_into(),
+					power: Power { base_N: 10, base_D: 10, exp_N: 1, exp_D: 1 },
+				};
 
-			let calculated_purchase_return = CalculatePurchaseAndSellReturn::purchase_return(
-				current_token_model,
-				current_total_issuance.saturated_into(),
-				reserve_balance.saturated_into(),
-				50u128,
-				reserve_amt.saturated_into(),
-			);
+				// equilent amount of continous tokens for the reserved amount
+				// of reserve token (native token)
+				let calculated_purchase_return = CalculatePurchaseAndSellReturn::purchase_return(
+					current_token_model,
+					current_total_issuance.saturated_into(),
+					reserve_balance.saturated_into(),
+					50u128,
+					reserve_amt.saturated_into(),
+				);
 
-			T::Currency::deposit(asset_id, &sender, calculated_purchase_return.saturated_into());
+				// the reserved amount of the reserve token is locked/reserved
+				// into the minter's account
+				let res_bal = reserve_amt.saturated_into::<u128>();
+				T::ReserveCurrency::reserve(&minter, res_bal.saturated_into())?;
 
-			let res_bal = reserve_amt.saturated_into::<u128>();
-			T::ReserveCurrency::reserve(
-				&sender,
-				res_bal.saturated_into(),
-			);
+				// minting the continous token to the minter's account
+				T::Currency::deposit(
+					asset_id,
+					&minter,
+					calculated_purchase_return.saturated_into(),
+				)?;
 
-			Ok(())
+				if let Some(prev_amt) = token.mint_data.current_mint_amount {
+					let new_amt = CheckedAdd::checked_add(
+						&prev_amt,
+						&calculated_purchase_return.saturated_into(),
+					)
+					.ok_or(Error::<T>::MintAmountOverflow)?;
+					token.mint_data.current_mint_amount = Some(new_amt);
+				} else {
+					token.mint_data.current_mint_amount =
+						Some(calculated_purchase_return.saturated_into());
+				}
+
+				<AssetsMinted<T>>::insert(asset_id.clone(), token);
+				Self::deposit_event(Event::AssetMinted(
+					minter,
+					asset_id,
+					calculated_purchase_return.saturated_into(),
+				));
+
+				Ok(())
+			} else {
+				Err(Error::<T>::AssetDoesNotExist)?
+			}
 		}
 
 		#[pallet::weight(10000 + T::DbWeight::get().reads_writes(1,1))]

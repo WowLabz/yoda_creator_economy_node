@@ -123,7 +123,7 @@ impl CalculatePurchaseAndSellReturn {
 			return 0;
 		} else {
 			// let result: u128 = supply.mul(deposit_amount).div(reserve_balance);
-			let result = supply.mul(deposit_amount).div(reserve_ratio);
+			let result = supply.mul(deposit_amount).div(reserve_balance);
 			let precision: u128 = 10;
 			let base_N: u128 = deposit_amount + reserve_balance;
 			let value: u128 = self.integral_purchase(precision, base_N);
