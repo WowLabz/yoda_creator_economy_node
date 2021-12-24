@@ -24,14 +24,14 @@ impl CurveType {
 
 const MAX_RESERVE_RATIO: u128 = 1000000;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Power {
 	pub base_N: u128,
 	pub base_D: u128,
 	pub exp_N: u128,
 	pub exp_D: u128,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct CalculatePurchaseAndSellReturn {
 	pub supply: u128,
 	pub reserve_balance: u128,
@@ -66,7 +66,7 @@ impl CalculatePurchaseAndSellReturn {
 			return 0;
 		} else {
 			let result: u128 = supply.mul(deposit_amount).div(reserve_balance);
-			let precision: u128 = 10;
+			let precision: u128 = 2;
 			let base_N: u128 = deposit_amount + reserve_balance;
 			let value: u128 = self.integral_purchase(precision, base_N);
 			let new_token_supply: u128 = supply.mul(value) >> precision;
@@ -97,7 +97,7 @@ impl CalculatePurchaseAndSellReturn {
 			return 0;
 		} else {
 			let result: u128 = reserve_balance.mul(sell_amount).div(supply);
-			let precision: u128 = 10;
+			let precision: u128 = 2;
 			let base_D: u128 = supply - sell_amount;
 			let value: u128 = self.integral_sell(precision, base_D);
 			let old_balance: u128 = reserve_balance.mul(value);

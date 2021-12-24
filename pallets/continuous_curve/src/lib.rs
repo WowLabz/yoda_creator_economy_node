@@ -21,7 +21,7 @@ pub mod pallet {
 	use crate::curves::*;
 	use frame_support::inherent::Vec;
 	use frame_support::traits::{
-		Currency, ExistenceRequirement, Get, Randomness, ReservableCurrency,
+		tokens::currency::Currency, ExistenceRequirement, Get, Randomness, ReservableCurrency,
 	};
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, transactional, PalletId};
 	use frame_system::pallet_prelude::*;
@@ -79,7 +79,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_balances::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -177,7 +177,6 @@ pub mod pallet {
 			asset_id: CurrencyIdOf<T>,
 			max_supply: BalanceOf<T>,
 			curve_type: CurveType,
-			reserve_amt: BalanceOf<T>,
 			token_name: Vec<u8>,
 			token_symbol: Vec<u8>,
 			token_decimals: u8,
@@ -225,7 +224,7 @@ pub mod pallet {
 
 			// initial_supply of the tokens is added to
 			// the creator's account
-			Self::mint(origin.clone(), asset_id, reserve_amt)?;
+			Self::mint(origin.clone(), asset_id, 1u32.saturated_into())?;
 
 			Self::deposit_event(Event::AssetCreated(asset_id, sender));
 			Ok(())
@@ -240,18 +239,38 @@ pub mod pallet {
 			let minter = ensure_signed(origin.clone())?;
 
 			if let Some(mut token) = Self::assets_minted(asset_id) {
+				const INITIAL_MINT_AMT: u32 = 1;
 				let current_total_issuance = T::Currency::total_issuance(asset_id);
+
+				if current_total_issuance == 0u32.saturated_into() {
+					// adding 1 continouis token into the minters account
+					T::Currency::deposit(asset_id, &minter, INITIAL_MINT_AMT.saturated_into())?;
+					token.mint_data.current_mint_amount = Some(INITIAL_MINT_AMT.saturated_into());
+				}
+
 				let reserve_balance = T::ReserveCurrency::reserved_balance(&minter);
+				log::info!("before_reserve_balance {:#?}", reserve_balance.clone());
+
+				if reserve_balance == 0u32.saturated_into() {
+					let test_bal = 1u128;
+					T::ReserveCurrency::reserve(&minter, test_bal.saturated_into())?;
+				}
+
+				let reserve_balance = T::ReserveCurrency::reserved_balance(&minter);
+				log::info!("pre_function_reserve_balance {:#?}", reserve_balance.clone());
+
 				let (n, _d) = token.curve.get_reserve_ratio();
 				// let reserve_ratio = sp_runtime::Permill::from_rational(50u32, 100u32);
 
 				let current_token_model = CalculatePurchaseAndSellReturn {
 					supply: current_total_issuance.saturated_into(),
 					reserve_balance: reserve_balance.saturated_into(),
-					reserve_ratio: 50u128,
+					reserve_ratio: 1u128,
 					deposit_amount: reserve_amt.saturated_into(),
-					power: Power { base_N: 10, base_D: 10, exp_N: 1, exp_D: 1 },
+					power: Power { base_N: 20, base_D: 10, exp_N: 2, exp_D: 1 },
 				};
+
+				log::info!("current_token_model {:#?}", current_token_model.clone());
 
 				// equilent amount of continous tokens for the reserved amount
 				// of reserve token (native token)
@@ -262,11 +281,21 @@ pub mod pallet {
 					50u128,
 					reserve_amt.saturated_into(),
 				);
+				log::info!("calculated_tokens_to_mint {:#?}", calculated_purchase_return.clone());
 
 				// the reserved amount of the reserve token is locked/reserved
 				// into the minter's account
 				let res_bal = reserve_amt.saturated_into::<u128>();
 				T::ReserveCurrency::reserve(&minter, res_bal.saturated_into())?;
+
+				let reserve_balance = T::ReserveCurrency::reserved_balance(&minter);
+				log::info!("after_transaction_reserve_balance {:#?}", reserve_balance.clone());
+
+				let free_bal = T::ReserveCurrency::free_balance(&minter);
+				log::info!("free_balance {:#?}", free_bal.clone());
+
+				// T::ReserveCurrency::set_balance(minter.clone(), 2, 2);
+				// pallet_balances::Pallet::set_balance(origin, minter.clone(), 2, 2);
 
 				// minting the continous token to the minter's account
 				T::Currency::deposit(
