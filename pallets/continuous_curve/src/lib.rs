@@ -73,8 +73,8 @@ pub mod pallet {
 		pub(super) minter: AccountOf<T>,
 		/// max minting limit
 		pub(super) minting_cap: Option<BalanceOf<T>>,
-		/// current mint amount
-		pub(super) current_mint_amount: Option<BalanceOf<T>>,
+		// current mint amount
+		// pub(super) current_mint_amount: Option<BalanceOf<T>>,
 	}
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
@@ -143,6 +143,8 @@ pub mod pallet {
 		AssetTokensAirDropped(CurrencyIdOf<T>, BalanceOf<T>, AccountOf<T>, Vec<AccountOf<T>>),
 		/// (AssetId, Amount)
 		AssetCurrentPrice(CurrencyIdOf<T>, BalanceOf<T>),
+		/// (Burner, AssetId, ReimburseAmount)
+		AssetBurnt(AccountOf<T>, CurrencyIdOf<T>, BalanceOf<T>),
 	}
 
 	#[pallet::error]
@@ -167,12 +169,18 @@ pub mod pallet {
 		CurveTypeNotDefined,
 		/// Error when there is a overflow in the mint amounts
 		MintAmountOverflow,
+		/// Error when the amount is zero
+		AmountCannotBeZero,
+		/// InsufficientTokensToBurn
+		InsufficientTokensToBurn,
+		/// BurnAmountCannotBeGreaterMinted
+		BurnAmountCannotBeGreaterMinted,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(10000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn create_token(
+		pub fn create_asset(
 			origin: OriginFor<T>,
 			asset_id: CurrencyIdOf<T>,
 			max_supply: BalanceOf<T>,
@@ -203,11 +211,8 @@ pub mod pallet {
 			// ensure!(mint.clone() < max_supply.clone(), Error::<T>::MintAmountGreaterThanMaxSupply);
 
 			let curve_id = Self::next_id();
-			let new_mint_details = MintingData::<T> {
-				minter: sender.clone(),
-				minting_cap: Some(max_supply.clone()),
-				current_mint_amount: None,
-			};
+			let new_mint_details =
+				MintingData::<T> { minter: sender.clone(), minting_cap: Some(max_supply.clone()) };
 
 			let new_token = BondingToken::<T> {
 				creator: sender.clone(),
@@ -240,12 +245,10 @@ pub mod pallet {
 
 			if let Some(mut token) = Self::assets_minted(asset_id) {
 				const INITIAL_MINT_AMT: u32 = 1;
-				let current_total_issuance = T::Currency::total_issuance(asset_id);
 
-				if current_total_issuance == 0u32.saturated_into() {
+				if T::Currency::total_issuance(asset_id) == 0u32.saturated_into() {
 					// adding 1 continouis token into the minters account
 					T::Currency::deposit(asset_id, &minter, INITIAL_MINT_AMT.saturated_into())?;
-					token.mint_data.current_mint_amount = Some(INITIAL_MINT_AMT.saturated_into());
 				}
 
 				let reserve_balance = T::ReserveCurrency::reserved_balance(&minter);
@@ -263,22 +266,28 @@ pub mod pallet {
 				// let reserve_ratio = sp_runtime::Permill::from_rational(50u32, 100u32);
 
 				let current_token_model = CalculatePurchaseAndSellReturn {
-					supply: current_total_issuance.saturated_into(),
-					reserve_balance: reserve_balance.saturated_into(),
-					reserve_ratio: 1u128,
-					deposit_amount: reserve_amt.saturated_into(),
-					power: Power { base_N: 20, base_D: 10, exp_N: 2, exp_D: 1 },
+					power: Power { base_N: 1, base_D: 1, exp_N: 1, exp_D: 1 },
 				};
 
 				log::info!("current_token_model {:#?}", current_token_model.clone());
 
+				let current_total_issuance = T::Currency::total_issuance(asset_id);
+				log::info!(
+					"pre_function current_total_issuance: {:#?}",
+					current_total_issuance.clone()
+				);
+
+				let reserve_bal_calc = reserve_balance.saturated_into::<u128>();
+				let reserve_balance_for_calculation: BalanceOf<T> =
+					(reserve_bal_calc + reserve_amt.saturated_into::<u128>()).saturated_into();
+					
 				// equilent amount of continous tokens for the reserved amount
 				// of reserve token (native token)
 				let calculated_purchase_return = CalculatePurchaseAndSellReturn::purchase_return(
 					current_token_model,
 					current_total_issuance.saturated_into(),
-					reserve_balance.saturated_into(),
-					50u128,
+					reserve_balance_for_calculation.saturated_into(),
+					1u128,
 					reserve_amt.saturated_into(),
 				);
 				log::info!("calculated_tokens_to_mint {:#?}", calculated_purchase_return.clone());
@@ -294,8 +303,11 @@ pub mod pallet {
 				let free_bal = T::ReserveCurrency::free_balance(&minter);
 				log::info!("free_balance {:#?}", free_bal.clone());
 
-				// T::ReserveCurrency::set_balance(minter.clone(), 2, 2);
-				// pallet_balances::Pallet::set_balance(origin, minter.clone(), 2, 2);
+				CheckedAdd::checked_add(
+					&T::Currency::total_issuance(asset_id.clone()),
+					&calculated_purchase_return.saturated_into(),
+				)
+				.ok_or(Error::<T>::MintAmountOverflow)?;
 
 				// minting the continous token to the minter's account
 				T::Currency::deposit(
@@ -304,19 +316,6 @@ pub mod pallet {
 					calculated_purchase_return.saturated_into(),
 				)?;
 
-				if let Some(prev_amt) = token.mint_data.current_mint_amount {
-					let new_amt = CheckedAdd::checked_add(
-						&prev_amt,
-						&calculated_purchase_return.saturated_into(),
-					)
-					.ok_or(Error::<T>::MintAmountOverflow)?;
-					token.mint_data.current_mint_amount = Some(new_amt);
-				} else {
-					token.mint_data.current_mint_amount =
-						Some(calculated_purchase_return.saturated_into());
-				}
-
-				<AssetsMinted<T>>::insert(asset_id.clone(), token);
 				Self::deposit_event(Event::AssetMinted(
 					minter,
 					asset_id,
@@ -335,7 +334,78 @@ pub mod pallet {
 			asset_id: CurrencyIdOf<T>,
 			burn_amt: BalanceOf<T>,
 		) -> DispatchResult {
-			Ok(())
+			let burner = ensure_signed(origin.clone())?;
+
+			ensure!(burn_amt != 0u32.saturated_into(), Error::<T>::AmountCannotBeZero);
+			ensure!(
+				burn_amt < T::Currency::total_issuance(asset_id),
+				Error::<T>::BurnAmountCannotBeGreaterMinted
+			);
+
+			if let Some(mut token) = Self::assets_minted(asset_id) {
+				let current_total_issuance = T::Currency::total_issuance(asset_id);
+				log::info!("burn current_total_issuance {:#?}", current_total_issuance.clone());
+				log::info!(
+					"burn current_total_issuance.saturated_into() {:#?}",
+					current_total_issuance.clone().saturated_into::<u128>()
+				);
+
+				ensure!(
+					current_total_issuance != 0u32.saturated_into(),
+					Error::<T>::InsufficientTokensToBurn
+				);
+
+				let reserve_balance = T::ReserveCurrency::reserved_balance(&burner);
+				log::info!("before_reserve_balance {:#?}", reserve_balance.clone());
+
+				let reserve_balance = T::ReserveCurrency::reserved_balance(&burner);
+				log::info!("pre_function_reserve_balance {:#?}", reserve_balance.clone());
+
+				let (n, _d) = token.curve.get_reserve_ratio();
+				// let reserve_ratio = sp_runtime::Permill::from_rational(50u32, 100u32);
+
+				let current_token_model = CalculatePurchaseAndSellReturn {
+					power: Power { base_N: 1, base_D: 1, exp_N: 1, exp_D: 1 },
+				};
+
+				log::info!("current_token_model {:#?}", current_token_model.clone());
+
+				// equilent amount of reserve(native) tokens for the burn amount
+				// of continuous token
+				let calculated_reimburse_amount =
+					CalculatePurchaseAndSellReturn::calculate_sale_return(
+						current_token_model,
+						current_total_issuance.saturated_into(),
+						reserve_balance.saturated_into(),
+						1u128,
+						burn_amt.saturated_into(),
+					);
+				log::info!("calculated_tokens_to_mint {:#?}", calculated_reimburse_amount.clone());
+
+				// the reimburse amount of the reserve(native) token is unlocked/unreserved
+				// from the burner's account
+				let res_bal = calculated_reimburse_amount.saturated_into::<u128>();
+				T::ReserveCurrency::unreserve(&burner, res_bal.saturated_into());
+
+				let reserve_balance = T::ReserveCurrency::reserved_balance(&burner);
+				log::info!("after_transaction_reserve_balance {:#?}", reserve_balance.clone());
+
+				let free_bal = T::ReserveCurrency::free_balance(&burner);
+				log::info!("free_balance {:#?}", free_bal.clone());
+
+				// burning the continous token from the burner's account
+				T::Currency::withdraw(asset_id, &burner, burn_amt)?;
+
+				Self::deposit_event(Event::AssetBurnt(
+					burner.clone(),
+					asset_id,
+					res_bal.saturated_into(),
+				));
+
+				Ok(())
+			} else {
+				Err(Error::<T>::AssetDoesNotExist)?
+			}
 		}
 	}
 }
