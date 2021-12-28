@@ -20,10 +20,12 @@ mod benchmarking;
 pub mod pallet {
 	use crate::curves::*;
 	use frame_support::inherent::Vec;
-	use frame_support::traits::{Currency, ExistenceRequirement, Get, Randomness};
+	use frame_support::pallet_prelude::OptionQuery;
+use frame_support::traits::{Currency, ExistenceRequirement, Get, Randomness};
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, transactional, PalletId};
 	use frame_system::pallet_prelude::*;
-	use orml_traits::{MultiCurrency, MultiReservableCurrency};
+	//use orml_currencies::CurrencyIdOf;
+use orml_traits::{MultiCurrency, MultiReservableCurrency};
 	use scale_info::prelude::boxed::Box;
 	use scale_info::TypeInfo;
 	use sp_runtime::traits::{AccountIdConversion, CheckedAdd, SaturatedConversion};
@@ -127,6 +129,12 @@ pub mod pallet {
 		BalanceOf<T>,
 		ValueQuery,
 	>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn spot_price)]
+	pub(super) type SpotPrice<T: Config> = 
+	StorageMap<_,Twox64Concat, CurrencyIdOf<T>, BalanceOf<T>>;
+
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -352,6 +360,7 @@ pub mod pallet {
 
 			log::info!("spot price: {:#?}", current_price.clone());
 			Self::deposit_event(Event::AssetSpotPrice(asset_id, current_price));
+			<SpotPrice<T>>::insert(asset_id.clone(), current_price);
 			Ok(())
 		}
 
