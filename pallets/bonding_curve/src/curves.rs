@@ -47,7 +47,10 @@ impl Linear {
 	/// Integral when the curve is at point `x`.
 	pub fn integral(&self, x: u128) -> u128 {
 		let nexp = self.exponent + 1;
-		x.pow(nexp) * self.slope / nexp as u128
+		let val = x.pow(nexp) * self.slope / nexp as u128;
+		log::info!("nexp = {:?} slope = {:?} exponent = {:?}", nexp, self.slope, self.exponent);
+		log::info!("Integral value {:?}", val);
+		return val
 	}
 }
 

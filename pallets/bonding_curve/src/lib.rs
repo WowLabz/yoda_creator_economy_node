@@ -219,7 +219,7 @@ use orml_traits::{MultiCurrency, MultiReservableCurrency};
 			T::Currency::deposit(
 				asset_id,
 				&T::PalletId::get().into_account(),
-				1u128.saturated_into(),
+				2u128.saturated_into(),
 			)?;
 
 			log::info!("total issuance {:#?}", T::Currency::total_issuance(asset_id));
@@ -257,10 +257,10 @@ use orml_traits::{MultiCurrency, MultiReservableCurrency};
 			let token = Self::assets_minted(asset_id).ok_or(<Error<T>>::AssetDoesNotExist)?;
 
 			// Todo: ensure that the current mint amount > amount requested
-			ensure!(
-				amount.clone() > T::Currency::total_issuance(asset_id),
-				<Error<T>>::MintAmountGreaterThanMaxSupply
-			);
+			// ensure!(
+			// 	amount.clone() > token.mint_data.minting_cap.unwrap(),
+			// 	<Error<T>>::MintAmountGreaterThanMaxSupply
+			// );
 
 			let total_issuance = T::Currency::total_issuance(asset_id).saturated_into::<u128>();
 
@@ -355,12 +355,14 @@ use orml_traits::{MultiCurrency, MultiReservableCurrency};
 			let token = Self::assets_minted(asset_id).ok_or(<Error<T>>::AssetDoesNotExist)?;
 			let curve = token.get_curve_config()?;
 			let total_issuance = T::Currency::total_issuance(asset_id).saturated_into::<u128>();
-			let current_price: BalanceOf<T> =
-				curve.integral_before(total_issuance).saturated_into();
-
+			log::info!("Total Issuance of the asset {:?}", total_issuance);
+			let current_price: u128 =
+				curve.integral_before(total_issuance);
+			let spot_price: BalanceOf<T> = (current_price / total_issuance).saturated_into();
 			log::info!("spot price: {:#?}", current_price.clone());
-			Self::deposit_event(Event::AssetSpotPrice(asset_id, current_price));
-			<SpotPrice<T>>::insert(asset_id.clone(), current_price);
+			log::info!("actual spot price{:?}", current_price.clone().saturated_into::<u128>()/total_issuance.clone());
+			Self::deposit_event(Event::AssetSpotPrice(asset_id, spot_price));
+			<SpotPrice<T>>::insert(asset_id.clone(), spot_price);
 			Ok(())
 		}
 
