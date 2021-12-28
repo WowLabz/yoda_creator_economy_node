@@ -3779,6 +3779,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bonding-curve"
+version = "1.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-continuous-curve"
 version = "1.0.0"
 dependencies = [
@@ -7965,6 +7984,7 @@ dependencies = [
  "pallet-assets",
  "pallet-aura",
  "pallet-balances",
+ "pallet-bonding-curve",
  "pallet-continuous-curve",
  "pallet-grandpa",
  "pallet-randomness-collective-flip",
