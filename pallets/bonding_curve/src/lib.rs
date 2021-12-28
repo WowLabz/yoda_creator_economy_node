@@ -250,7 +250,7 @@ pub mod pallet {
 
 			// Todo: ensure that the current mint amount > amount requested
 			ensure!(
-				amount.clone() < T::Currency::total_issuance(asset_id),
+				amount.clone() > T::Currency::total_issuance(asset_id),
 				<Error<T>>::MintAmountGreaterThanMaxSupply
 			);
 
@@ -275,7 +275,7 @@ pub mod pallet {
 			log::info!("cost to buy {:#?} tokens is {:#?}", amount, cost.clone());
 
 			ensure!(
-				T::Currency::free_balance(T::GetNativeCurrencyId::get(), &buyer) >= cost.into(),
+				T::Currency::free_balance(T::GetNativeCurrencyId::get(), &buyer) <= cost.into(),
 				Error::<T>::InsufficentBalanceForPurchase,
 			);
 
