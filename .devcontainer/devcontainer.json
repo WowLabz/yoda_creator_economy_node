@@ -1,0 +1,29 @@
+{
+  "name": "Yoda Creator Economy",
+  "image": "paritytech/ci-linux:production",
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "fish",
+    "lldb.executable": "/usr/bin/lldb",
+    "editor.formatOnSave": true,
+    "files.exclude": {
+      "**/CODE_OF_CONDUCT.md": true,
+      "**/LICENSE": true
+    }
+  },
+  "extensions": [
+    "rust-lang.rust-analyzer",
+    "bungcip.better-toml",
+    "vadimcn.vscode-lldb",
+    "serayuzgur.crates",
+    "vscodevim.vim"
+  ],
+  "forwardPorts": [
+    3000,
+    9944,
+    9933
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/docker-from-docker:1": {},
+    "ghcr.io/devcontainers/features/rust:1": {},
+    "ghcr.io/meaningful-ooo/devcontainer-features/fish:1": {}
+  }
